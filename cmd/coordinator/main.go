@@ -1,11 +1,9 @@
 package main
 
 import (
-	"fmt"
+	"github.com/barrydevp/transcoorditor/internal/cmd"
 )
 
 func main() {
-
-	fmt.Println("Hello World")
-
+	cmd.ApiServer()
 }
