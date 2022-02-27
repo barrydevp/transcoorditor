@@ -1,8 +1,7 @@
 package controller
 
 import (
-	"github.com/barrydevp/transcoorditor/pkg/action"
-	// "github.com/barrydevp/transcoorditor/pkg/schema"
+	"github.com/barrydevp/transcoorditor/pkg/schema"
 	"github.com/barrydevp/transcoorditor/pkg/util"
 	"github.com/gofiber/fiber/v2"
 )
@@ -24,13 +23,13 @@ func (ctrl *Controller) GetSessionById(c *fiber.Ctx) error {
 }
 
 func (ctrl *Controller) StartSession(c *fiber.Ctx) error {
-	sessionOpts := action.NewSessionOption()
+	sessionOpts := schema.NewSessionOption()
 
 	if err := c.BodyParser(sessionOpts); err != nil {
 		return util.SendError(c, fiber.StatusBadRequest, err)
 	}
 
-	session := action.NewSession(sessionOpts)
+	session := schema.NewSession(sessionOpts)
 
 	if err := ctrl.ac.StartSession(session); err != nil {
 		return util.Send500(c, err)

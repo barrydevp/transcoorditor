@@ -5,28 +5,7 @@ import (
 
 	"github.com/barrydevp/transcoorditor/pkg/schema"
 	"github.com/barrydevp/transcoorditor/pkg/util"
-	"github.com/google/uuid"
 )
-
-const (
-	defaultSessionTimeout = 30
-)
-
-func NewSessionOption() *schema.SessionOptions {
-	return &schema.SessionOptions{Timeout: defaultSessionTimeout}
-}
-
-func NewSession(opts *schema.SessionOptions) *schema.Session {
-	now := time.Now()
-
-	return &schema.Session{
-		Id:           uuid.NewString(),
-		State:        schema.SessionNew,
-		Timeout:      opts.Timeout,
-		CreatedAt:    &now,
-		Participants: nil,
-	}
-}
 
 func (ac *Action) checkSessionAvailable(s *schema.Session) error {
 	if s.State == schema.SessionNew {

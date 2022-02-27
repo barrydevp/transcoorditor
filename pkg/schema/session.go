@@ -2,6 +2,8 @@ package schema
 
 import (
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type SessionState string
@@ -22,6 +24,14 @@ type SessionOptions struct {
 	Timeout int `json:"timeout"`
 }
 
+const (
+	defaultSessionTimeout = 30
+)
+
+func NewSessionOption() *SessionOptions {
+	return &SessionOptions{Timeout: defaultSessionTimeout}
+}
+
 type Session struct {
 	// represents storage field. eg: mongodb field, mysql column
 	Id string `json:"id" bson:"id"`
@@ -34,6 +44,18 @@ type Session struct {
 
 	// for edges field (relations associate field)
 	Participants []*Participant `json:"participants,omitempty" bson:"-"`
+}
+
+func NewSession(opts *SessionOptions) *Session {
+	now := time.Now()
+
+	return &Session{
+		Id:           uuid.NewString(),
+		State:        SessionNew,
+		Timeout:      opts.Timeout,
+		CreatedAt:    &now,
+		Participants: nil,
+	}
 }
 
 func (s *Session) IsTimeout() bool {

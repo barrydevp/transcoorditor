@@ -2,6 +2,8 @@ package schema
 
 import (
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type ActionStatus string
@@ -43,8 +45,23 @@ type Participant struct {
 	ClientId         string             `json:"clientId" bson:"clientId"`
 	RequestId        string             `json:"requestId" bson:"requestId"`
 	State            ParticipantState   `json:"state" bson:"state"`
-	CompensateAction *ParticipantAction `json:"compensateAction" bson:"compensateAction"`
-	CompleteAction   *ParticipantAction `json:"completeAction" bson:"completeAction"`
+	CompensateAction *ParticipantAction `json:"compensateAction,omitempty" bson:"compensateAction,omitempty"`
+	CompleteAction   *ParticipantAction `json:"completeAction,omitempty" bson:"completeAction,omitempty"`
 	UpdatedAt        *time.Time         `json:"updatedAt,omitempty" json:"bson,omitempty"`
 	CreatedAt        *time.Time         `json:"createdAt" bson:"createdAt"`
+}
+
+type ParticipantJoinRequest struct {
+	ClientId  string `json:"clientId"`
+	RequestId string `json:"requestId"`
+}
+
+func NewParticipant() *Participant {
+	now := time.Now()
+
+	return &Participant{
+		Id:        uuid.NewString(),
+		State:     ParticipantActive,
+		CreatedAt: &now,
+	}
 }

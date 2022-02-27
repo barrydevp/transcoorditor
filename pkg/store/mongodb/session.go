@@ -2,7 +2,6 @@ package mongodb
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/barrydevp/transcoorditor/pkg/schema"
 	"github.com/barrydevp/transcoorditor/pkg/util"
@@ -35,8 +34,6 @@ func (s *Session) Save(session *schema.Session) error {
 		if err != nil {
 			return nil, err
 		}
-
-		fmt.Printf("inserted: %v\n", inserted)
 
 		return inserted, nil
 	}, 10); err != nil {
