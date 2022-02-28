@@ -4,6 +4,6 @@ import (
     "fmt"
 )
 
-func NewError(format string, a ...interface{}) error {
+func Errorf(format string, a ...interface{}) error {
     return fmt.Errorf(format, a...)
 }

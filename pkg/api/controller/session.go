@@ -9,14 +9,14 @@ import (
 func (ctrl *Controller) GetSessionById(c *fiber.Ctx) error {
 	sesisonId := c.Params("sessionId")
 
-	session, err := ctrl.ac.GetSessionById(sesisonId, false)
+	session, err := ctrl.ac.GetSessionById(sesisonId, true)
 
 	if err != nil {
 		return util.Send500(c, err)
 	}
 
 	if session == nil {
-		return util.Send404(c, util.NewError("session not found"))
+		return util.Send404(c, util.Errorf("session not found"))
 	}
 
 	return util.SendSuccess(c, session)
@@ -26,32 +26,39 @@ func (ctrl *Controller) StartSession(c *fiber.Ctx) error {
 	sessionOpts := schema.NewSessionOption()
 
 	if err := c.BodyParser(sessionOpts); err != nil {
-		return util.SendError(c, fiber.StatusBadRequest, err)
+		return util.Send500(c, err)
 	}
 
 	session := schema.NewSession(sessionOpts)
 
-	if err := ctrl.ac.StartSession(session); err != nil {
+	if _, err := ctrl.ac.StartSession(session); err != nil {
 		return util.Send500(c, err)
 	}
 
 	return util.SendSuccess(c, session)
 }
 
-// func (ctrl *Controller) JoinSession(c *fiber.Ctx) error {
-// 	sessionId := c.Params("sessionId")
-//
-// 	if err := c.BodyParser(sessionOpts); err != nil {
-// 		return util.SendError(c, fiber.StatusBadRequest, err)
-// 	}
-//
-// 	session := action.NewSession(sessionOpts)
-//
-// 	if err := ctrl.ac.StartSession(session); err != nil {
-// 		return util.Send500(c, err)
-// 	}
-//
-// 	return util.SendSuccess(c, fiber.Map{
-// 		"session": session,
-// 	})
-// }
+func (ctrl *Controller) JoinSession(c *fiber.Ctx) error {
+	sessionId := c.Params("sessionId")
+	partJoinBody := &schema.ParticipantJoinBody{}
+
+	if err := c.BodyParser(partJoinBody); err != nil {
+		return util.Send500(c, err)
+	}
+
+	if err := partJoinBody.Validate(); err != nil {
+		return util.Send400(c, err)
+	}
+
+	part := schema.NewParticipant()
+	part.SessionId = sessionId
+	part.ClientId = partJoinBody.ClientId
+	part.RequestId = partJoinBody.RequestId
+
+	part, err := ctrl.ac.JoinSession(sessionId, part)
+	if err != nil {
+		return util.Send500(c, err)
+	}
+
+	return util.SendSuccess(c, part)
+}

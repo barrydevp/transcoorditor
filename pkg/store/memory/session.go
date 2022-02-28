@@ -35,15 +35,20 @@ func (s *Session) FindById(id string) (*schema.Session, error) {
 	data := s.m[id]
 
 	if data == nil {
-		return nil, util.NewError("not found")
+		return nil, util.Errorf("not found")
 	}
 
 	session, ok := data.(*schema.Session)
 	if !ok {
 		delete(s.m, id)
 
-		return nil, util.NewError("detect unexpected behavior")
+		return nil, util.Errorf("detect unexpected behavior")
 	}
 
 	return session, nil
 }
+
+func (s *Session) UpdateById(id string, schemaUpdate *schema.SessionUpdate) (*schema.Session, error) {
+	return nil, nil
+}
+

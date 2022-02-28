@@ -28,15 +28,28 @@ func (s *Participant) FindById(id string) (*schema.Participant, error) {
 	data := s.m[id]
 
 	if data == nil {
-		return nil, util.NewError("not found")
+		return nil, util.Errorf("not found")
 	}
 
 	part, ok := data.(*schema.Participant)
 	if !ok {
 		delete(s.m, id)
 
-		return nil, util.NewError("detect unexpected behavior")
+		return nil, util.Errorf("detect unexpected behavior")
 	}
 
 	return part, nil
+}
+
+// @TODO
+func (s *Participant) FindBySessionId(sessionId string) ([]*schema.Participant, error) {
+	return nil, nil
+}
+
+func (s *Participant) FindDupInSession(sessionId string, part *schema.Participant) (*schema.Participant, error) {
+	return nil, nil
+}
+
+func (s *Participant) UpdateById(id string, partUpdate *schema.ParticipantUpdate) (*schema.Participant, error) {
+	return nil, nil
 }

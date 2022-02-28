@@ -23,7 +23,7 @@ func (ctrl *Controller) PublicRoutes(a *fiber.App) {
 	// register routes
 	route.Get("/session/:sessionId", ctrl.GetSessionById)
 	route.Post("/session", ctrl.StartSession)
-	// route.Post("/session/:sesionId/join")
+	route.Post("/session/:sessionId/join", ctrl.JoinSession)
 	// route.Post("/session/:sesionId/update")
 	// route.Post("/session/:sesionId/end")
 

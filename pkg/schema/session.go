@@ -46,6 +46,13 @@ type Session struct {
 	Participants []*Participant `json:"participants,omitempty" bson:"-"`
 }
 
+type SessionUpdate struct {
+	State     *SessionState `json:"state"`
+	Timeout   *int          `json:"timeout"`
+	UpdatedAt *time.Time    `json:"updatedAt"`
+	StartedAt *time.Time    `json:"startedAt"`
+}
+
 func NewSession(opts *SessionOptions) *Session {
 	now := time.Now()
 

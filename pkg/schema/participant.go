@@ -3,6 +3,7 @@ package schema
 import (
 	"time"
 
+	"github.com/barrydevp/transcoorditor/pkg/common"
 	"github.com/google/uuid"
 )
 
@@ -30,6 +31,7 @@ type ParticipantState string
 
 const (
 	ParticipantActive           ParticipantState = "Active"
+	ParticipantCommitted                         = "Committed"
 	ParticipantCompensating                      = "Compensating"
 	ParticipantCompensated                       = "Compensated"
 	ParticipantCompensateFailed                  = "CompensateFailed"
@@ -39,8 +41,8 @@ const (
 )
 
 type Participant struct {
-	Id        string `json:"id"`
-	SessionId string `json:"sessionId"`
+	Id        string `json:"id" bson:"id"`
+	SessionId string `json:"sessionId" bson:"sessionId"`
 
 	ClientId         string             `json:"clientId" bson:"clientId"`
 	RequestId        string             `json:"requestId" bson:"requestId"`
@@ -51,11 +53,6 @@ type Participant struct {
 	CreatedAt        *time.Time         `json:"createdAt" bson:"createdAt"`
 }
 
-type ParticipantJoinRequest struct {
-	ClientId  string `json:"clientId"`
-	RequestId string `json:"requestId"`
-}
-
 func NewParticipant() *Participant {
 	now := time.Now()
 
@@ -64,4 +61,22 @@ func NewParticipant() *Participant {
 		State:     ParticipantActive,
 		CreatedAt: &now,
 	}
+}
+
+type ParticipantJoinBody struct {
+	ClientId  string `json:"clientId" validate:"required"`
+	RequestId string `json:"requestId"`
+}
+
+func (p *ParticipantJoinBody) Validate() error {
+	return common.GetValidate().Struct(p)
+}
+
+type ParticipantUpdate struct {
+	// ClientId         *string             `json:"clientId"`
+	// RequestId        *string             `json:"requestId"`
+	State            *ParticipantState  `json:"state"`
+	CompensateAction *ParticipantAction `json:"compensateAction"`
+	CompleteAction   *ParticipantAction `json:"completeAction"`
+	UpdatedAt        *time.Time         `json:"updatedAt"`
 }
