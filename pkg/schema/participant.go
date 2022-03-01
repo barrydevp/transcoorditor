@@ -7,22 +7,22 @@ import (
 	"github.com/google/uuid"
 )
 
-type ActionStatus string
+type PartActionStatus string
 
 const (
-	ActionPending    ActionStatus = "Pending"
-	ActionProcessing              = "Processing"
-	ActionCompleted               = "Completed"
-	ActionFailed                  = "Failed"
-	ActionSkipped                 = "Skipped"
+	PartActionPending    PartActionStatus = "Pending"
+	PartActionProcessing                  = "Processing"
+	PartActionCompleted                   = "Completed"
+	PartActionFailed                      = "Failed"
+	PartActionSkipped                     = "Skipped"
 )
 
 type ParticipantAction struct {
-	Data         interface{}  `json:"data" bson:"data"`
-	Target       string       `json:"target" bson:"target"`
-	Status       ActionStatus `json:"status" bson:"status"`
-	Result       interface{}  `json:"result" bson:"result"`
-	InvokedCount int          `json:"invokedCount" bson:"invokedCount"`
+	Data         interface{}      `json:"data" bson:"data"`
+	Path         *string          `json:"path" bson:"target" validate:"required"`
+	Status       PartActionStatus `json:"status" bson:"status"`
+	Result       interface{}      `json:"result" bson:"result"`
+	InvokedCount int              `json:"invokedCount" bson:"invokedCount"`
 
 	// TODO: capture invoked events
 }
@@ -79,4 +79,10 @@ type ParticipantUpdate struct {
 	CompensateAction *ParticipantAction `json:"compensateAction"`
 	CompleteAction   *ParticipantAction `json:"completeAction"`
 	UpdatedAt        *time.Time         `json:"updatedAt"`
+}
+
+type ParticipantCommit struct {
+	Id         *string            `json:"participantId" validate:"required"`
+	Compensate *ParticipantAction `json:"compensate"`
+	Complete   *ParticipantAction `json:"complete"`
 }

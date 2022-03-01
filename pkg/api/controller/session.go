@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"github.com/barrydevp/transcoorditor/pkg/common"
 	"github.com/barrydevp/transcoorditor/pkg/schema"
 	"github.com/barrydevp/transcoorditor/pkg/util"
 	"github.com/gofiber/fiber/v2"
@@ -46,7 +47,7 @@ func (ctrl *Controller) JoinSession(c *fiber.Ctx) error {
 		return util.Send500(c, err)
 	}
 
-	if err := partJoinBody.Validate(); err != nil {
+	if err := common.GetValidate().Struct(partJoinBody); err != nil {
 		return util.Send400(c, err)
 	}
 
@@ -56,6 +57,26 @@ func (ctrl *Controller) JoinSession(c *fiber.Ctx) error {
 	part.RequestId = partJoinBody.RequestId
 
 	part, err := ctrl.ac.JoinSession(sessionId, part)
+	if err != nil {
+		return util.Send500(c, err)
+	}
+
+	return util.SendSuccess(c, part)
+}
+
+func (ctrl *Controller) PartialCommit(c *fiber.Ctx) error {
+	sessionId := c.Params("sessionId")
+	partCommit := &schema.ParticipantCommit{}
+
+	if err := c.BodyParser(partCommit); err != nil {
+		return util.Send500(c, err)
+	}
+
+	if err := common.GetValidate().Struct(partCommit); err != nil {
+		return util.Send400(c, err)
+	}
+
+	part, err := ctrl.ac.PartialCommit(sessionId, partCommit)
 	if err != nil {
 		return util.Send500(c, err)
 	}

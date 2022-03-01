@@ -24,7 +24,7 @@ func (ctrl *Controller) PublicRoutes(a *fiber.App) {
 	route.Get("/session/:sessionId", ctrl.GetSessionById)
 	route.Post("/session", ctrl.StartSession)
 	route.Post("/session/:sessionId/join", ctrl.JoinSession)
-	// route.Post("/session/:sesionId/update")
+	route.Post("/session/:sessionId/partial-commit", ctrl.PartialCommit)
 	// route.Post("/session/:sesionId/end")
 
 }

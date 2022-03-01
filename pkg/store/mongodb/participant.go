@@ -82,6 +82,7 @@ func (s *Participant) FindBySessionId(sessionId string) ([]*schema.Participant, 
 			return nil, err
 		}
 
+        // @TODO: convert bson.D of compensateAction.data to bson.M?
 		if err := cursor.All(ctx, &results); err != nil {
 			return nil, err
 		}
