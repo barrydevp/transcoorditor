@@ -10,6 +10,7 @@ require (
 	github.com/go-openapi/swag v0.21.1 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/go-playground/validator v9.31.0+incompatible // indirect
+	github.com/go-resty/resty/v2 v2.7.0 // indirect
 	github.com/gofiber/fiber/v2 v2.27.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/klauspost/compress v1.14.3 // indirect

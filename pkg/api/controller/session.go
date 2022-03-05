@@ -8,9 +8,9 @@ import (
 )
 
 func (ctrl *Controller) GetSessionById(c *fiber.Ctx) error {
-	sesisonId := c.Params("sessionId")
+	sessionId := c.Params("sessionId")
 
-	session, err := ctrl.ac.GetSessionById(sesisonId, true)
+	session, err := ctrl.ac.GetSessionById(sessionId, true)
 
 	if err != nil {
 		return util.Send500(c, err)
@@ -76,7 +76,18 @@ func (ctrl *Controller) PartialCommit(c *fiber.Ctx) error {
 		return util.Send400(c, err)
 	}
 
-	part, err := ctrl.ac.PartialCommit(sessionId, partCommit)
+	part, err := ctrl.ac.PartialCommitSession(sessionId, partCommit)
+	if err != nil {
+		return util.Send500(c, err)
+	}
+
+	return util.SendSuccess(c, part)
+}
+
+func (ctrl *Controller) CommitSession(c *fiber.Ctx) error {
+	sessionId := c.Params("sessionId")
+
+	part, err := ctrl.ac.CommitSession(sessionId)
 	if err != nil {
 		return util.Send500(c, err)
 	}

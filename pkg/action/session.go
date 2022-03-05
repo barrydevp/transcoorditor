@@ -42,13 +42,13 @@ func (ac *Action) findSessionById(id string) (*schema.Session, error) {
 }
 
 func (ac *Action) GetSessionById(id string, populate bool) (*schema.Session, error) {
+	// @TODO: implement IO concurrent
 	session, err := ac.findSessionById(id)
 
 	if err != nil {
 		return nil, err
 	}
 
-	// implement populate participant
 	if populate {
 		parts, err := ac.s.Participant().FindBySessionId(id)
 
@@ -121,7 +121,7 @@ func (ac *Action) JoinSession(sessionId string, part *schema.Participant) (*sche
 	return part, nil
 }
 
-func (ac *Action) PartialCommit(sessionId string, partCommit *schema.ParticipantCommit) (*schema.Participant, error) {
+func (ac *Action) PartialCommitSession(sessionId string, partCommit *schema.ParticipantCommit) (*schema.Participant, error) {
 	// @TODO: improve get session and participant concurrency
 	session, err := ac.findSessionById(sessionId)
 	if err != nil {
@@ -167,4 +167,29 @@ func (ac *Action) PartialCommit(sessionId string, partCommit *schema.Participant
 	}
 
 	return part, nil
+}
+
+func (ac *Action) CommitSession(id string) (*schema.Session, error) {
+	session, err := ac.GetSessionById(id, true)
+	if err != nil {
+		return nil, err
+	}
+
+	session.State = schema.SessionCommitting
+	if _, err := ac.s.Session().UpdateById(id, &schema.SessionUpdate{State: &session.State}); err != nil {
+		return nil, err
+	}
+
+	err = ac.handlePartComplete(session)
+	if err != nil {
+		session.State = schema.SessionTerminated
+	} else {
+		session.State = schema.SessionCommitted
+	}
+
+	if _, err := ac.s.Session().UpdateById(id, &schema.SessionUpdate{State: &session.State}); err != nil {
+		return nil, err
+	}
+
+	return session, err
 }

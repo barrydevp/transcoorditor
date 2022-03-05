@@ -1,8 +1,10 @@
 package schema
 
 import (
+	"errors"
 	"time"
 
+	"github.com/barrydevp/transcoorditor/pkg/util"
 	"github.com/google/uuid"
 )
 
@@ -26,6 +28,10 @@ type SessionOptions struct {
 
 const (
 	defaultSessionTimeout = 30
+)
+
+var (
+	ErrSessionExpired = errors.New("session has been expired")
 )
 
 func NewSessionOption() *SessionOptions {
@@ -72,3 +78,33 @@ func (s *Session) IsTimeout() bool {
 
 	return time.Now().After(s.StartedAt.Add(time.Second * time.Duration(s.Timeout)))
 }
+
+func (s *Session) CheckSessionAvailable() error {
+	if s.State == SessionNew {
+		return util.Errorf("session was not started")
+	}
+
+	if s.State != SessionStarted && s.State != SessionActive {
+		return util.Errorf("session is in %v", s.State)
+	}
+
+	if s.IsTimeout() {
+		return ErrSessionExpired
+	}
+
+	return nil
+}
+
+func (s *Session) AbleToCommitOrRollback() error {
+	if s.State != SessionActive {
+		return util.Errorf("session is not Active, current is %v", s.State)
+	}
+
+	if s.IsTimeout() {
+		return ErrSessionExpired
+	}
+
+	return nil
+}
+
+

@@ -17,12 +17,22 @@ const (
 	PartActionSkipped                     = "Skipped"
 )
 
+type PartActionResult struct {
+	Error      string        `json:"error" bson:"error,omitempty"`
+	StatusCode int           `json:"statusCode" bson:"statusCode,omitempty"`
+	Status     string        `json:"status" bson:"status,omitempty"`
+	Proto      string        `json:"proto" bson:"proto,omitempty"`
+	Time       time.Duration `json:"time" bson:"time,omitempty"`
+	ReceivedAt time.Time     `json:"receivedAt" bson:"receivedAt,omitempty"`
+	Body       string        `json:"body" bson:"body,omitempty"`
+}
+
 type ParticipantAction struct {
-	Data         interface{}      `json:"data" bson:"data"`
-	Path         *string          `json:"path" bson:"target" validate:"required"`
-	Status       PartActionStatus `json:"status" bson:"status"`
-	Result       interface{}      `json:"result" bson:"result"`
-	InvokedCount int              `json:"invokedCount" bson:"invokedCount"`
+	Data         interface{}         `json:"data" bson:"data"`
+	Target       *string             `json:"target" bson:"target" validate:"required"`
+	Status       PartActionStatus    `json:"status" bson:"status"`
+	Results      []*PartActionResult `json:"results" bson:"results"`
+	InvokedCount int                 `json:"invokedCount" bson:"invokedCount"`
 
 	// TODO: capture invoked events
 }
