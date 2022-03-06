@@ -9,40 +9,9 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// func (ac *Action) invokeAction(a *schema.Action, handler ActionHandler) (resultCh chan interface{}, err error) {
-//
-// 	// check if status is not pending to run
-// 	if a.Status != "Pending" {
-// 		return nil, util.NewError("action was %v", a.Status)
-// 	}
-//
-// 	// increase invoked count
-// 	a.InvokedCount++
-//
-// 	a.Status = schema.ActionProcessing
-//
-// 	// invoke handler
-// 	resultCh = make(chan interface{})
-//
-// 	go func() {
-// 		result, err := handler(a)
-//
-// 		if err != nil {
-//
-// 		}
-// 	}()
-//
-// 	if err != nil {
-// 		a.Status = ActionCompleted
-//
-// 	}
-//
-// 	return
-// }
-
 var (
 	ErrParticipantNotFound = errors.New("participant not found")
-	ErrInvalidActionPath   = errors.New("invalid action's path")
+	ErrInvalidActionUri    = errors.New("invalid action's uri")
 	ErrActionRequestFailed = errors.New("action request failed")
 )
 
@@ -69,9 +38,9 @@ func (ac *Action) invokePartAction(action *schema.ParticipantAction) (err error)
 
 	result := &schema.PartActionResult{}
 
-	if action.Target == nil {
-		err = ErrInvalidActionPath
-		goto RET_ERROR
+	if action.Uri == nil {
+		err = ErrInvalidActionUri
+		goto RET
 	}
 
 	// build request
@@ -89,10 +58,10 @@ func (ac *Action) invokePartAction(action *schema.ParticipantAction) (err error)
 		req.SetBody(body)
 	}
 
-	resp, err = req.Post(*action.Target)
+	resp, err = req.Post(*action.Uri)
 
 	if err != nil {
-		goto RET_ERROR
+		goto RET
 	}
 
 	result.StatusCode = resp.StatusCode()
@@ -104,26 +73,38 @@ func (ac *Action) invokePartAction(action *schema.ParticipantAction) (err error)
 
 	if resp.StatusCode() != 200 {
 		err = ErrActionRequestFailed
-		goto RET_ERROR
+		goto RET
 	}
 
-	return nil
+RET:
+	if err != nil {
+		result.Error = err.Error()
+	}
 
-RET_ERROR:
-	result.Error = err.Error()
 	action.Results = append(action.Results, result)
 
 	return err
 }
 
-func (ac *Action) handlePartComplete(session *schema.Session) error {
+func (ac *Action) handlePartComplete(session *schema.Session) []string {
 	if len(session.Participants) == 0 {
 		return nil
 	}
 
+	var errs []string
+
 	for _, part := range session.Participants {
+		partUpdate := &schema.ParticipantUpdate{
+			State:          &part.State,
+			CompleteAction: part.CompleteAction,
+		}
+
 		if part.CompleteAction != nil {
 			completeAc := part.CompleteAction
+
+			if completeAc.IsFinished() {
+				continue
+			}
 
 			// @TODO: validate action
 
@@ -133,19 +114,60 @@ func (ac *Action) handlePartComplete(session *schema.Session) error {
 			if err != nil {
 				completeAc.Status = schema.PartActionFailed
 				part.State = schema.ParticipantCompleteFailed
+				errs = append(errs, err.Error())
 			} else {
 				completeAc.Status = schema.PartActionCompleted
 				part.State = schema.ParticipantCompleted
 			}
+		} else {
+			part.State = schema.ParticipantCompleted
+		}
+
+		if _, err := ac.s.Participant().UpdateById(part.Id, partUpdate); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
+
+	return errs
+}
+
+func (ac *Action) handlePartCompensate(session *schema.Session) []string {
+	if len(session.Participants) == 0 {
+		return nil
+	}
+
+	var errs []string
+
+	for _, part := range session.Participants {
+		if part.CompleteAction != nil {
+			compensateAction := part.CompensateAction
+
+			// if compensateAction.IsFinished() {
+			// 	continue
+			// }
+
+			// @TODO: validate action
+
+			// @TODO: update to processing
+
+			err := ac.invokePartAction(compensateAction)
+			if err != nil {
+				compensateAction.Status = schema.PartActionFailed
+				part.State = schema.ParticipantCompensateFailed
+				errs = append(errs, err.Error())
+			} else {
+				compensateAction.Status = schema.PartActionCompleted
+				part.State = schema.ParticipantCompensated
+			}
 
 			if _, err = ac.s.Participant().UpdateById(part.Id, &schema.ParticipantUpdate{
-				State:          &part.State,
-				CompleteAction: part.CompleteAction,
+				State:            &part.State,
+				CompensateAction: part.CompensateAction,
 			}); err != nil {
-				return err
+				errs = append(errs, err.Error())
 			}
 		}
 	}
 
-	return nil
+	return errs
 }

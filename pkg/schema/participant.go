@@ -29,12 +29,16 @@ type PartActionResult struct {
 
 type ParticipantAction struct {
 	Data         interface{}         `json:"data" bson:"data"`
-	Target       *string             `json:"target" bson:"target" validate:"required"`
+	Uri          *string             `json:"uri" bson:"uri" validate:"required"`
 	Status       PartActionStatus    `json:"status" bson:"status"`
 	Results      []*PartActionResult `json:"results" bson:"results"`
 	InvokedCount int                 `json:"invokedCount" bson:"invokedCount"`
 
 	// TODO: capture invoked events
+}
+
+func (pa *ParticipantAction) IsFinished() bool {
+	return pa.Status == PartActionCompleted || pa.Status == PartActionSkipped
 }
 
 type ParticipantState string
@@ -93,6 +97,6 @@ type ParticipantUpdate struct {
 
 type ParticipantCommit struct {
 	Id         *string            `json:"participantId" validate:"required"`
-	Compensate *ParticipantAction `json:"compensate"`
+	Compensate *ParticipantAction `json:"compensate" validate:"required"`
 	Complete   *ParticipantAction `json:"complete"`
 }

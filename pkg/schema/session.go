@@ -11,15 +11,15 @@ import (
 type SessionState string
 
 const (
-	SessionNew         SessionState = "New"
-	SessionStarted                  = "Started"
-	SessionActive                   = "Active"
-	SessionCommitting               = "Committing"
-	SessionCommitted                = "Commited"
-	SessionAborting                 = "Aborting"
-	SessionAborted                  = "Aborted"
-	SessionTerminating              = "Terminating"
-	SessionTerminated               = "Terminated"
+	SessionNew          SessionState = "New"
+	SessionStarted                   = "Started"
+	SessionActive                    = "Active"
+	SessionCommitting                = "Committing"
+	SessionCommitted                 = "Commited"
+	SessionCommitFailed              = "CommitFailed"
+	SessionAborting                  = "Aborting"
+	SessionAborted                   = "Aborted"
+	SessionAbortFailed               = "AbortFailed"
 )
 
 type SessionOptions struct {
@@ -27,7 +27,7 @@ type SessionOptions struct {
 }
 
 const (
-	defaultSessionTimeout = 30
+	defaultSessionTimeout = 120 // 2 mins
 )
 
 var (
@@ -47,16 +47,18 @@ type Session struct {
 	UpdatedAt *time.Time   `json:"updatedAt,omitempty" bson:"updatedAt,omitempty"`
 	StartedAt *time.Time   `json:"startedAt,omitempty" bson:"startedAt,omitempty"`
 	CreatedAt *time.Time   `json:"createdAt,omitempty" bson:"createdAt,omitempty"`
+	Errors    []string     `json:"errors,omitempty" bson:"errors,omitempty"`
 
 	// for edges field (relations associate field)
 	Participants []*Participant `json:"participants,omitempty" bson:"-"`
 }
 
 type SessionUpdate struct {
-	State     *SessionState `json:"state"`
-	Timeout   *int          `json:"timeout"`
-	UpdatedAt *time.Time    `json:"updatedAt"`
-	StartedAt *time.Time    `json:"startedAt"`
+	State     *SessionState
+	Errors    *[]string
+	Timeout   *int `json:"timeout"`
+	UpdatedAt *time.Time
+	StartedAt *time.Time
 }
 
 func NewSession(opts *SessionOptions) *Session {
@@ -79,24 +81,12 @@ func (s *Session) IsTimeout() bool {
 	return time.Now().After(s.StartedAt.Add(time.Second * time.Duration(s.Timeout)))
 }
 
-func (s *Session) CheckSessionAvailable() error {
+func (s *Session) CheckSessionActive() error {
 	if s.State == SessionNew {
 		return util.Errorf("session was not started")
 	}
 
 	if s.State != SessionStarted && s.State != SessionActive {
-		return util.Errorf("session is in %v", s.State)
-	}
-
-	if s.IsTimeout() {
-		return ErrSessionExpired
-	}
-
-	return nil
-}
-
-func (s *Session) AbleToCommitOrRollback() error {
-	if s.State != SessionActive {
 		return util.Errorf("session is not Active, current is %v", s.State)
 	}
 
@@ -107,4 +97,34 @@ func (s *Session) AbleToCommitOrRollback() error {
 	return nil
 }
 
+func (s *Session) IsAllPartAbleToEnd() bool {
+	for _, part := range s.Participants {
 
+		switch part.State {
+		case ParticipantActive, ParticipantCompensating, ParticipantCompleting:
+			return false
+		}
+	}
+
+	return true
+}
+
+func (s *Session) AbleToCommitOrRollback() error {
+	// if s.State != SessionActive && s.State != SessionStarted {
+	// 	return util.Errorf("session is not Active, current is %v", s.State)
+	// }
+	//
+	// if s.IsTimeout() {
+	// 	return ErrSessionExpired
+	// }
+
+	if err := s.CheckSessionActive(); err != nil {
+		return err
+	}
+
+	if !s.IsAllPartAbleToEnd() {
+		return util.Errorf("session has some participant not able to end")
+	}
+
+	return nil
+}

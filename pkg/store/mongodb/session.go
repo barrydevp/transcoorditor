@@ -79,6 +79,10 @@ func (s *Session) UpdateById(id string, schemaUpdate *schema.SessionUpdate) (*sc
 		update = append(update, bson.E{"state", schemaUpdate.State})
 	}
 
+	if schemaUpdate.Errors != nil {
+		update = append(update, bson.E{"errors", &schemaUpdate.Errors})
+	}
+
 	if schemaUpdate.UpdatedAt != nil {
 		update = append(update, bson.E{"updatedAt", schemaUpdate.UpdatedAt})
 	}

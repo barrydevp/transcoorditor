@@ -94,3 +94,14 @@ func (ctrl *Controller) CommitSession(c *fiber.Ctx) error {
 
 	return util.SendSuccess(c, part)
 }
+
+func (ctrl *Controller) AbortSession(c *fiber.Ctx) error {
+	sessionId := c.Params("sessionId")
+
+	part, err := ctrl.ac.AbortSession(sessionId)
+	if err != nil {
+		return util.Send500(c, err)
+	}
+
+	return util.SendSuccess(c, part)
+}

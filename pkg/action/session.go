@@ -175,21 +175,61 @@ func (ac *Action) CommitSession(id string) (*schema.Session, error) {
 		return nil, err
 	}
 
+	if err = session.AbleToCommitOrRollback(); err != nil {
+		return nil, err
+	}
+
 	session.State = schema.SessionCommitting
 	if _, err := ac.s.Session().UpdateById(id, &schema.SessionUpdate{State: &session.State}); err != nil {
 		return nil, err
 	}
 
-	err = ac.handlePartComplete(session)
-	if err != nil {
-		session.State = schema.SessionTerminated
+	errs := ac.handlePartComplete(session)
+	if len(errs) > 0 {
+		session.State = schema.SessionCommitFailed
+		session.Errors = errs
 	} else {
 		session.State = schema.SessionCommitted
 	}
 
-	if _, err := ac.s.Session().UpdateById(id, &schema.SessionUpdate{State: &session.State}); err != nil {
+	if _, err := ac.s.Session().UpdateById(id, &schema.SessionUpdate{State: &session.State, Errors: &session.Errors}); err != nil {
 		return nil, err
 	}
 
 	return session, err
+}
+
+func (ac *Action) abortSession(session *schema.Session) (*schema.Session, error) {
+	if err := session.AbleToCommitOrRollback(); err != nil {
+		return nil, err
+	}
+
+	session.State = schema.SessionAborting
+	if _, err := ac.s.Session().UpdateById(session.Id, &schema.SessionUpdate{State: &session.State}); err != nil {
+		return nil, err
+	}
+
+	errs := ac.handlePartCompensate(session)
+	if len(errs) > 0 {
+		session.State = schema.SessionAbortFailed
+		session.Errors = errs
+	} else {
+		session.State = schema.SessionAborted
+	}
+
+	if _, err := ac.s.Session().UpdateById(session.Id, &schema.SessionUpdate{State: &session.State, Errors: &session.Errors}); err != nil {
+		return nil, err
+	}
+
+	return session, nil
+}
+
+func (ac *Action) AbortSession(id string) (*schema.Session, error) {
+	session, err := ac.GetSessionById(id, true)
+	if err != nil {
+		return nil, err
+	}
+
+	return ac.abortSession(session)
+
 }
