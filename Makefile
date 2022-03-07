@@ -1,4 +1,4 @@
-.PHONY: all run coordinator
+.PHONY: all run coordinator docker-compose-up docker-compose-down
 
 # Go Flags
 GOFLAGS ?= $(GOFLAGS:)
@@ -23,8 +23,15 @@ coordinator:
 	# $(GO) run $(GOFLAGS) -ldflags '$(LDFLAGS)' $(COORDINATOR_CMD)
 	$(GO) run $(GOFLAGS) $(COORDINATOR_CMD)
 
-build-coordinator:
+build_coordinator:
 	@echo Building Coordinator
 
 	$(GO) build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o $(COORDINATOR_OUT) $(COORDINATOR_CMD)
 
+dev-compose: docker-compose-down docker-compose-up coordinator
+
+docker-compose-up:
+	@docker-compose up -d
+
+docker-compose-clean:
+	@docker-compose down

@@ -8,13 +8,13 @@ import (
 // memory storage
 // TBD
 type Participant struct {
-	m map[string]interface{}
+	m map[int64]interface{}
 }
 
 func NewParticipant() *Participant {
 
 	return &Participant{
-		m: make(map[string]interface{}),
+		m: make(map[int64]interface{}),
 	}
 }
 
@@ -24,7 +24,11 @@ func (s *Participant) Save(part *schema.Participant) error {
 	return nil
 }
 
-func (s *Participant) FindById(id string) (*schema.Participant, error) {
+func (s *Participant) PutBySessionAndId(sessionId string, id int64, part *schema.Participant) (*schema.Participant, error) {
+	return nil, nil
+}
+
+func (s *Participant) FindBySessionAndId(sessionId string, id int64) (*schema.Participant, error) {
 	data := s.m[id]
 
 	if data == nil {
@@ -50,6 +54,10 @@ func (s *Participant) FindDupInSession(sessionId string, part *schema.Participan
 	return nil, nil
 }
 
-func (s *Participant) UpdateById(id string, partUpdate *schema.ParticipantUpdate) (*schema.Participant, error) {
+func (s *Participant) UpdateBySessionAndId(sessionId string, id int64, partUpdate *schema.ParticipantUpdate) (*schema.Participant, error) {
 	return nil, nil
+}
+
+func (s *Participant) CountBySessionId(sessionId string) (int64, error) {
+	return 0, nil
 }

@@ -62,6 +62,16 @@ func (ac *Action) GetSessionById(id string, populate bool) (*schema.Session, err
 	return session, nil
 }
 
+func (ac *Action) PutSessionById(s *schema.Session) (*schema.Session, error) {
+	session, err := ac.s.Session().PutById(s.Id, s)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return session, nil
+}
+
 func (ac *Action) StartSession(s *schema.Session) (*schema.Session, error) {
 	// if s.State != schema.SessionNew {
 	// 	return util.NewError("session has already started, state: %v", s.State)
@@ -104,8 +114,14 @@ func (ac *Action) JoinSession(sessionId string, part *schema.Participant) (*sche
 		}
 	}
 
+	partNum, err := ac.s.Participant().CountBySessionId(sessionId)
+	if err != nil {
+		return nil, util.Errorf("failed to get number participant in session %w", err)
+	}
+
 	// @TODO: wrap in transaction
 	// part.SessionId = s.Id
+	part.Id = partNum + 1
 	if err := ac.s.Participant().Save(part); err != nil {
 		return nil, err
 	}
@@ -131,7 +147,7 @@ func (ac *Action) PartialCommitSession(sessionId string, partCommit *schema.Part
 		return nil, err
 	}
 
-	part, err := ac.findParticipantById(*partCommit.Id)
+	part, err := ac.findParticipantById(sessionId, *partCommit.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +177,7 @@ func (ac *Action) PartialCommitSession(sessionId string, partCommit *schema.Part
 	}
 
 	// @TODO: wrap in transaction
-	part, err = ac.s.Participant().UpdateById(*partCommit.Id, partUpdate)
+	part, err = ac.s.Participant().UpdateBySessionAndId(sessionId, *partCommit.Id, partUpdate)
 	if err != nil {
 		return nil, util.Errorf("failed to commit participant: %w", err)
 	}
@@ -188,6 +204,7 @@ func (ac *Action) CommitSession(id string) (*schema.Session, error) {
 	if len(errs) > 0 {
 		session.State = schema.SessionCommitFailed
 		session.Errors = errs
+		err = util.Errorf("failed to handle complete action on participants")
 	} else {
 		session.State = schema.SessionCommitted
 	}
@@ -200,7 +217,9 @@ func (ac *Action) CommitSession(id string) (*schema.Session, error) {
 }
 
 func (ac *Action) abortSession(session *schema.Session) (*schema.Session, error) {
-	if err := session.AbleToCommitOrRollback(); err != nil {
+	var err error = nil
+
+	if err = session.AbleToCommitOrRollback(); err != nil {
 		return nil, err
 	}
 
@@ -213,6 +232,7 @@ func (ac *Action) abortSession(session *schema.Session) (*schema.Session, error)
 	if len(errs) > 0 {
 		session.State = schema.SessionAbortFailed
 		session.Errors = errs
+		err = util.Errorf("failed to handle complete action on participants")
 	} else {
 		session.State = schema.SessionAborted
 	}
@@ -221,7 +241,7 @@ func (ac *Action) abortSession(session *schema.Session) (*schema.Session, error)
 		return nil, err
 	}
 
-	return session, nil
+	return session, err
 }
 
 func (ac *Action) AbortSession(id string) (*schema.Session, error) {

@@ -97,33 +97,54 @@ func (s *Session) CheckSessionActive() error {
 	return nil
 }
 
-func (s *Session) IsAllPartAbleToEnd() bool {
+func (s *Session) CheckAllPartAbleToEnd() error {
 	for _, part := range s.Participants {
 
 		switch part.State {
-		case ParticipantActive, ParticipantCompensating, ParticipantCompleting:
-			return false
+		case ParticipantActive:
+			return util.Errorf("some participant is in Active (in-processing and hasn't commit)")
+		case ParticipantCompensating:
+			return util.Errorf("some participant is in Compensating")
+		case ParticipantCompleting:
+			return util.Errorf("some participant is in Completing")
 		}
 	}
 
-	return true
+	return nil
 }
 
+var (
+	ErrSessionIsCommitting    = errors.New("session is Committing")
+	ErrSessionWasCommitted    = errors.New("session was Committed")
+	ErrSessionWasCommitFailed = errors.New("session was CommitFailed")
+	ErrSessionIsAborting      = errors.New("session is Aborting")
+	ErrSessionWasAborted      = errors.New("session was Aborted")
+	ErrSessionWasAbortFailed  = errors.New("session was AbortFailed")
+)
+
 func (s *Session) AbleToCommitOrRollback() error {
-	// if s.State != SessionActive && s.State != SessionStarted {
-	// 	return util.Errorf("session is not Active, current is %v", s.State)
-	// }
-	//
-	// if s.IsTimeout() {
-	// 	return ErrSessionExpired
-	// }
+	switch s.State {
+	case SessionCommitting:
+		return ErrSessionIsCommitting
+	case SessionCommitted:
+		return ErrSessionWasCommitted
+	case SessionCommitFailed:
+		return ErrSessionWasCommitFailed
+	case SessionAborting:
+		return ErrSessionIsAborting
+	case SessionAborted:
+		return ErrSessionWasAborted
+	case SessionAbortFailed:
+		return ErrSessionWasAbortFailed
+
+	}
 
 	if err := s.CheckSessionActive(); err != nil {
 		return err
 	}
 
-	if !s.IsAllPartAbleToEnd() {
-		return util.Errorf("session has some participant not able to end")
+	if err := s.CheckAllPartAbleToEnd(); err != nil {
+		return err
 	}
 
 	return nil

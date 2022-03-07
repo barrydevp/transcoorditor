@@ -42,11 +42,75 @@ func (s *Participant) Save(part *schema.Participant) error {
 	return nil
 }
 
-func (s *Participant) FindById(id string) (*schema.Participant, error) {
+func (s *Participant) PutBySessionAndId(sessionId string, id int64, partUpdate *schema.Participant) (*schema.Participant, error) {
+	update := bson.D{}
+
+	if partUpdate.State != "" {
+		update = append(update, bson.E{"state", partUpdate.State})
+	}
+
+	if partUpdate.ClientId != "" {
+		update = append(update, bson.E{"clientId", partUpdate.ClientId})
+	}
+
+	if partUpdate.RequestId != "" {
+		update = append(update, bson.E{"requestId", partUpdate.RequestId})
+	}
+
+	if partUpdate.UpdatedAt != nil {
+		update = append(update, bson.E{"updatedAt", partUpdate.UpdatedAt})
+	}
+
+	if partUpdate.CompensateAction != nil {
+		update = append(update, bson.E{"compensateAction", partUpdate.CompensateAction})
+	}
+
+	if partUpdate.CompleteAction != nil {
+		update = append(update, bson.E{"completeAction", partUpdate.CompleteAction})
+	}
+
+	// no changes
+	if len(update) == 0 {
+		return s.FindBySessionAndId(sessionId, id)
+	}
+
+	if partUpdate.UpdatedAt == nil {
+		update = append(update, bson.E{"updatedAt", time.Now()})
+	}
+
 	part := &schema.Participant{}
 
 	doc, err := util.WithTimeout(func(ctx context.Context) (interface{}, error) {
-		filter := bson.D{{"id", id}}
+		filter := bson.D{{"sessionId", sessionId}, {"id", id}}
+		opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
+
+		err := s.col.FindOneAndUpdate(ctx, filter, bson.D{{"$set", update}}, opts).Decode(part)
+
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				return nil, nil
+			}
+
+			return nil, err
+		}
+
+		return part, nil
+	}, 10)
+
+	if err != nil {
+		return nil, err
+	}
+
+	r, _ := doc.(*schema.Participant)
+
+	return r, nil
+}
+
+func (s *Participant) FindBySessionAndId(sessionId string, id int64) (*schema.Participant, error) {
+	part := &schema.Participant{}
+
+	doc, err := util.WithTimeout(func(ctx context.Context) (interface{}, error) {
+		filter := bson.D{{"sessionId", sessionId}, {"id", id}}
 
 		err := s.col.FindOne(ctx, filter).Decode(part)
 
@@ -82,7 +146,7 @@ func (s *Participant) FindBySessionId(sessionId string) ([]*schema.Participant, 
 			return nil, err
 		}
 
-        // @TODO: convert bson.D of compensateAction.data to bson.M?
+		// @TODO: convert bson.D of compensateAction.data to bson.M?
 		if err := cursor.All(ctx, &results); err != nil {
 			return nil, err
 		}
@@ -132,7 +196,7 @@ func (s *Participant) FindDupInSession(sessionId string, part *schema.Participan
 	return r, nil
 }
 
-func (s *Participant) UpdateById(id string, partUpdate *schema.ParticipantUpdate) (*schema.Participant, error) {
+func (s *Participant) UpdateBySessionAndId(sessionId string, id int64, partUpdate *schema.ParticipantUpdate) (*schema.Participant, error) {
 	update := bson.D{}
 
 	if partUpdate.State != nil {
@@ -153,7 +217,7 @@ func (s *Participant) UpdateById(id string, partUpdate *schema.ParticipantUpdate
 
 	// no changes
 	if len(update) == 0 {
-		return s.FindById(id)
+		return s.FindBySessionAndId(sessionId, id)
 	}
 
 	if partUpdate.UpdatedAt == nil {
@@ -163,7 +227,7 @@ func (s *Participant) UpdateById(id string, partUpdate *schema.ParticipantUpdate
 	part := &schema.Participant{}
 
 	doc, err := util.WithTimeout(func(ctx context.Context) (interface{}, error) {
-		filter := bson.D{{"id", id}}
+		filter := bson.D{{"sessionId", sessionId}, {"id", id}}
 		opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
 
 		err := s.col.FindOneAndUpdate(ctx, filter, bson.D{{"$set", update}}, opts).Decode(part)
@@ -184,6 +248,28 @@ func (s *Participant) UpdateById(id string, partUpdate *schema.ParticipantUpdate
 	}
 
 	r, _ := doc.(*schema.Participant)
+
+	return r, nil
+}
+
+func (s *Participant) CountBySessionId(sessionId string) (int64, error) {
+	doc, err := util.WithTimeout(func(ctx context.Context) (interface{}, error) {
+		filter := bson.D{{"sessionId", sessionId}}
+
+		count, err := s.col.CountDocuments(ctx, filter)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return count, nil
+	}, 10)
+
+	if err != nil {
+		return -1, err
+	}
+
+	r, _ := doc.(int64)
 
 	return r, nil
 }

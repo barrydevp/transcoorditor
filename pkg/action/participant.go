@@ -15,8 +15,8 @@ var (
 	ErrActionRequestFailed = errors.New("action request failed")
 )
 
-func (ac *Action) findParticipantById(id string) (*schema.Participant, error) {
-	doc, err := ac.s.Participant().FindById(id)
+func (ac *Action) findParticipantById(sessionId string, id int64) (*schema.Participant, error) {
+	doc, err := ac.s.Participant().FindBySessionAndId(sessionId, id)
 	if err != nil {
 		return nil, util.Errorf("failed to get participant: %w", err)
 	}
@@ -123,7 +123,7 @@ func (ac *Action) handlePartComplete(session *schema.Session) []string {
 			part.State = schema.ParticipantCompleted
 		}
 
-		if _, err := ac.s.Participant().UpdateById(part.Id, partUpdate); err != nil {
+		if _, err := ac.s.Participant().UpdateBySessionAndId(session.Id, part.Id, partUpdate); err != nil {
 			errs = append(errs, err.Error())
 		}
 	}
@@ -160,7 +160,7 @@ func (ac *Action) handlePartCompensate(session *schema.Session) []string {
 				part.State = schema.ParticipantCompensated
 			}
 
-			if _, err = ac.s.Participant().UpdateById(part.Id, &schema.ParticipantUpdate{
+			if _, err = ac.s.Participant().UpdateBySessionAndId(session.Id, part.Id, &schema.ParticipantUpdate{
 				State:            &part.State,
 				CompensateAction: part.CompensateAction,
 			}); err != nil {

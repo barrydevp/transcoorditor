@@ -1,0 +1,11 @@
+# dependencies only
+version: "3.9"
+services:
+  mongodb:
+    image: "mongo:4"
+    ports:
+      - 27017:27017
+    volumes:
+      - ./.local/data:/data/db
+    network_mode: "host"
+

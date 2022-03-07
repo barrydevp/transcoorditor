@@ -31,6 +31,10 @@ func (s *Session) Save(session *schema.Session) error {
 	return nil
 }
 
+func (s *Session) PutById(id string, schemaUpdate *schema.Session) (*schema.Session, error) {
+	return nil, nil
+}
+
 func (s *Session) FindById(id string) (*schema.Session, error) {
 	data := s.m[id]
 
@@ -51,4 +55,3 @@ func (s *Session) FindById(id string) (*schema.Session, error) {
 func (s *Session) UpdateById(id string, schemaUpdate *schema.SessionUpdate) (*schema.Session, error) {
 	return nil, nil
 }
-

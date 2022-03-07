@@ -44,6 +44,62 @@ func (s *Session) Save(session *schema.Session) error {
 	return nil
 }
 
+func (s *Session) PutById(id string, schemaUpdate *schema.Session) (*schema.Session, error) {
+	update := bson.D{}
+
+	if schemaUpdate.State != "" {
+		update = append(update, bson.E{"state", schemaUpdate.State})
+	}
+
+	if schemaUpdate.Errors != nil {
+		update = append(update, bson.E{"errors", &schemaUpdate.Errors})
+	}
+
+	if schemaUpdate.UpdatedAt != nil {
+		update = append(update, bson.E{"updatedAt", schemaUpdate.UpdatedAt})
+	}
+
+	if schemaUpdate.Timeout != 0 {
+		update = append(update, bson.E{"timeout", schemaUpdate.Timeout})
+	}
+
+	// no changes
+	if len(update) == 0 {
+		return s.FindById(id)
+	}
+
+	if schemaUpdate.UpdatedAt == nil {
+		update = append(update, bson.E{"updatedAt", time.Now()})
+	}
+
+	session := &schema.Session{}
+
+	doc, err := util.WithTimeout(func(ctx context.Context) (interface{}, error) {
+		filter := bson.D{{"id", id}}
+		opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
+
+		err := s.col.FindOneAndUpdate(ctx, filter, bson.D{{"$set", update}}, opts).Decode(session)
+
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				return nil, nil
+			}
+
+			return nil, err
+		}
+
+		return session, nil
+	}, 10)
+
+	if err != nil {
+		return nil, err
+	}
+
+	r, _ := doc.(*schema.Session)
+
+	return r, nil
+}
+
 func (s *Session) FindById(id string) (*schema.Session, error) {
 	session := &schema.Session{}
 

@@ -89,7 +89,7 @@ func (ctrl *Controller) CommitSession(c *fiber.Ctx) error {
 
 	part, err := ctrl.ac.CommitSession(sessionId)
 	if err != nil {
-		return util.Send500(c, err)
+		return util.Send500WithData(c, util.Errorf("cannot commit session, %w", err), part)
 	}
 
 	return util.SendSuccess(c, part)
@@ -100,8 +100,32 @@ func (ctrl *Controller) AbortSession(c *fiber.Ctx) error {
 
 	part, err := ctrl.ac.AbortSession(sessionId)
 	if err != nil {
-		return util.Send500(c, err)
+		return util.Send500WithData(c, util.Errorf("cannot abort session, %w", err), part)
 	}
 
 	return util.SendSuccess(c, part)
 }
+
+func (ctrl *Controller) PutSessionById(c *fiber.Ctx) error {
+	sessionId := c.Params("sessionId")
+
+    session := &schema.Session{}
+
+	if err := c.BodyParser(session); err != nil {
+		return util.Send500(c, err)
+	}
+
+    session.Id = sessionId
+	session, err := ctrl.ac.PutSessionById(session)
+
+	if err != nil {
+		return util.Send500(c, err)
+	}
+
+	if session == nil {
+		return util.Send404(c, util.Errorf("session not found"))
+	}
+
+	return util.SendSuccess(c, session)
+}
+

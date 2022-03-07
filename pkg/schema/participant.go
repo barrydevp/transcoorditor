@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/barrydevp/transcoorditor/pkg/common"
-	"github.com/google/uuid"
+	// "github.com/google/uuid"
 )
 
 type PartActionStatus string
@@ -55,7 +55,7 @@ const (
 )
 
 type Participant struct {
-	Id        string `json:"id" bson:"id"`
+	Id        int64  `json:"id" bson:"id"`
 	SessionId string `json:"sessionId" bson:"sessionId"`
 
 	ClientId         string             `json:"clientId" bson:"clientId"`
@@ -71,7 +71,8 @@ func NewParticipant() *Participant {
 	now := time.Now()
 
 	return &Participant{
-		Id:        uuid.NewString(),
+		// Id:        uuid.NewString(),
+		Id:        0,
 		State:     ParticipantActive,
 		CreatedAt: &now,
 	}
@@ -96,7 +97,7 @@ type ParticipantUpdate struct {
 }
 
 type ParticipantCommit struct {
-	Id         *string            `json:"participantId" validate:"required"`
+	Id         *int64             `json:"participantId" validate:"required"`
 	Compensate *ParticipantAction `json:"compensate" validate:"required"`
 	Complete   *ParticipantAction `json:"complete"`
 }
