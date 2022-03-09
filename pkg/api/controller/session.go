@@ -111,8 +111,10 @@ func (ctrl *Controller) PartialCommit(c *fiber.Ctx) error {
 	part, err := ctrl.srv.PartialCommitSession(sessionId, partCommit)
 	if errors.Is(err, service.ErrNotFound) {
 		return SendError(c, fiber.StatusNotFound, "session not found", err)
+	} else if errors.Is(err, service.ErrPreconditionFailed) {
+		return SendError(c, fiber.StatusPreconditionFailed, "unable to partial commit session", err)
 	} else if err != nil {
-		return SendInternalError(c, "unable to delete session", err)
+		return SendInternalError(c, "unable to partial commit session", err)
 	}
 
 	return SendOK(c, part)
@@ -122,7 +124,9 @@ func (ctrl *Controller) CommitSession(c *fiber.Ctx) error {
 	sessionId := c.Params("sessionId")
 
 	part, err := ctrl.srv.CommitSession(sessionId)
-	if errors.Is(err, service.ErrPreconditionFailed) {
+	if errors.Is(err, service.ErrNotFound) {
+		return SendError(c, fiber.StatusNotFound, "session not found", err)
+	} else if errors.Is(err, service.ErrPreconditionFailed) {
 		return SendError(c, fiber.StatusPreconditionFailed, "unable to commit session", err)
 	} else if err != nil {
 		return SendInternalError(c, "unable to commit session", err)
@@ -135,7 +139,9 @@ func (ctrl *Controller) AbortSession(c *fiber.Ctx) error {
 	sessionId := c.Params("sessionId")
 
 	part, err := ctrl.srv.AbortSession(sessionId)
-	if errors.Is(err, service.ErrPreconditionFailed) {
+	if errors.Is(err, service.ErrNotFound) {
+		return SendError(c, fiber.StatusNotFound, "session not found", err)
+	} else if errors.Is(err, service.ErrPreconditionFailed) {
 		return SendError(c, fiber.StatusPreconditionFailed, "unable to abort session", err)
 	} else if err != nil {
 		return SendInternalError(c, "unable to abort session", err)

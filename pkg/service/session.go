@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	ErrSessionNotFound error = util.Errorf("session not found. %w", ErrNotFound)
+	ErrSessionNotFound error = util.Errorf("%w: session was not found in storage", ErrNotFound)
 )
 
 func (srv *Service) findSessionById(id string) (*schema.Session, error) {
@@ -94,7 +94,7 @@ func (srv *Service) JoinSession(sessionId string, part *schema.Participant) (*sc
 	}
 
 	if err := session.CheckSessionActive(); err != nil {
-		return nil, util.Errorf("%w. %w", err, ErrPreconditionFailed)
+		return nil, util.Errorw(err, ErrPreconditionFailed)
 	}
 
 	if part.RequestId != "" {
@@ -187,7 +187,7 @@ func (srv *Service) commitSession(session *schema.Session) (*schema.Session, err
 	var err error = nil
 
 	if err = session.AbleToCommitOrRollback(); err != nil {
-		return nil, util.Errorf("%w. %w", err, ErrPreconditionFailed)
+		return nil, util.Errorw(err, ErrPreconditionFailed)
 	}
 
 	session.State = schema.SessionCommitting
@@ -224,7 +224,7 @@ func (srv *Service) abortSession(session *schema.Session) (*schema.Session, erro
 	var err error = nil
 
 	if err = session.AbleToCommitOrRollback(); err != nil {
-		return nil, util.Errorf("%w. %w", err, ErrPreconditionFailed)
+		return nil, util.Errorw(err, ErrPreconditionFailed)
 	}
 
 	session.State = schema.SessionAborting
