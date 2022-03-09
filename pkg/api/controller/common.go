@@ -10,6 +10,7 @@ type ApiResponse interface {
 }
 
 type ApiError struct {
+	Msg        string
 	Err        error
 	StatusCode int
 	Detail     interface{}
@@ -26,7 +27,8 @@ func (r *ApiError) Status() int {
 func (r *ApiError) Response() *fiber.Map {
 	resp := fiber.Map{
 		"ok":  false,
-		"msg": r.Err.Error(),
+		"msg": r.Msg,
+		"err": r.Err.Error(),
 	}
 
 	if r.Detail != nil {
@@ -76,24 +78,25 @@ func SendApiResponse(c *fiber.Ctx, apiResp ApiResponse) error {
 	return c.Status(apiResp.Status()).JSON(apiResp.Response())
 }
 
-func SendResponse(c *fiber.Ctx, resp interface{}) error {
-	var apiResp ApiResponse
-
-	switch response := resp.(type) {
-	case ApiResponse:
-	case error:
-		return SendApiResponse(c, &ApiError{
-			Err:        response,
-			StatusCode: fiber.StatusInternalServerError,
-		})
-	}
-
-	return SendApiResponse(c, apiResp)
+func SendSuccess(c *fiber.Ctx, status int, data interface{}) error {
+	return SendApiResponse(c, &ApiSuccess{
+		Data:       data,
+		StatusCode: status,
+	})
 }
 
-func SendInternalError(c *fiber.Ctx, err error) error {
+func SendOK(c *fiber.Ctx, data interface{}) error {
+	return SendSuccess(c, fiber.StatusOK, data)
+}
+
+func SendError(c *fiber.Ctx, status int, msg string, err error) error {
 	return SendApiResponse(c, &ApiError{
+		Msg:        msg,
 		Err:        err,
-		StatusCode: fiber.StatusInternalServerError,
+		StatusCode: status,
 	})
+}
+
+func SendInternalError(c *fiber.Ctx, msg string, err error) error {
+	return SendError(c, fiber.StatusInternalServerError, msg, err)
 }

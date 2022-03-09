@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	ErrParticipantNotFound = errors.New("participant not found")
-	ErrInvalidActionUri    = errors.New("invalid action's uri")
+	ErrParticipantNotFound = util.Errorf("participant not found. %w", ErrNotFound)
+	ErrInvalidActionUri    = util.Errorf("invalid action's uri. %w", ErrInvalidArgument)
 	ErrActionRequestFailed = errors.New("action request failed")
 )
 

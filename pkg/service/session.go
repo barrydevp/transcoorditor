@@ -1,7 +1,6 @@
 package service
 
 import (
-	"errors"
 	"time"
 
 	"github.com/barrydevp/transcoorditor/pkg/schema"
@@ -9,7 +8,7 @@ import (
 )
 
 var (
-	ErrSessionNotFound error = errors.New("session not found")
+	ErrSessionNotFound error = util.Errorf("session not found. %w", ErrNotFound)
 )
 
 func (srv *Service) findSessionById(id string) (*schema.Session, error) {
@@ -95,7 +94,7 @@ func (srv *Service) JoinSession(sessionId string, part *schema.Participant) (*sc
 	}
 
 	if err := session.CheckSessionActive(); err != nil {
-		return nil, err
+		return nil, util.Errorf("%w. %w", err, ErrPreconditionFailed)
 	}
 
 	if part.RequestId != "" {
@@ -151,11 +150,11 @@ func (srv *Service) PartialCommitSession(sessionId string, partCommit *schema.Pa
 	}
 
 	if part.SessionId != session.Id {
-		return nil, util.Errorf("commit participant not belong to this session")
+		return nil, util.Errorf("commit participant not belong to this session. %w", ErrPreconditionFailed)
 	}
 
 	if part.State != schema.ParticipantActive {
-		return nil, util.Errorf("this participant has already committed, current state: %v", part.State)
+		return nil, util.Errorf("this participant has already committed, current state: %v. %w", part.State, ErrPreconditionFailed)
 	}
 
 	part.State = schema.ParticipantCommitted
@@ -184,18 +183,15 @@ func (srv *Service) PartialCommitSession(sessionId string, partCommit *schema.Pa
 	return part, nil
 }
 
-func (srv *Service) CommitSession(id string) (*schema.Session, error) {
-	session, err := srv.GetSessionById(id, true)
-	if err != nil {
-		return nil, err
-	}
+func (srv *Service) commitSession(session *schema.Session) (*schema.Session, error) {
+	var err error = nil
 
 	if err = session.AbleToCommitOrRollback(); err != nil {
-		return nil, err
+		return nil, util.Errorf("%w. %w", err, ErrPreconditionFailed)
 	}
 
 	session.State = schema.SessionCommitting
-	if _, err := srv.s.Session().UpdateById(id, &schema.SessionUpdate{State: &session.State}); err != nil {
+	if _, err = srv.s.Session().UpdateById(session.Id, &schema.SessionUpdate{State: &session.State}); err != nil {
 		return nil, err
 	}
 
@@ -208,18 +204,27 @@ func (srv *Service) CommitSession(id string) (*schema.Session, error) {
 		session.State = schema.SessionCommitted
 	}
 
-	if _, err := srv.s.Session().UpdateById(id, &schema.SessionUpdate{State: &session.State, Errors: &session.Errors}); err != nil {
+	if _, err = srv.s.Session().UpdateById(session.Id, &schema.SessionUpdate{State: &session.State, Errors: &session.Errors}); err != nil {
 		return nil, err
 	}
 
 	return session, err
 }
 
+func (srv *Service) CommitSession(id string) (*schema.Session, error) {
+	session, err := srv.GetSessionById(id, true)
+	if err != nil {
+		return nil, err
+	}
+
+	return srv.commitSession(session)
+}
+
 func (srv *Service) abortSession(session *schema.Session) (*schema.Session, error) {
 	var err error = nil
 
 	if err = session.AbleToCommitOrRollback(); err != nil {
-		return nil, err
+		return nil, util.Errorf("%w. %w", err, ErrPreconditionFailed)
 	}
 
 	session.State = schema.SessionAborting

@@ -1,9 +1,9 @@
 package util
 
 import (
-    "fmt"
+	"fmt"
 )
 
 func Errorf(format string, a ...interface{}) error {
-    return fmt.Errorf(format, a...)
+	return fmt.Errorf(format, a...)
 }
