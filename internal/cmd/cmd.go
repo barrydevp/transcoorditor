@@ -3,10 +3,10 @@ package cmd
 import (
 	"path/filepath"
 
-	"github.com/barrydevp/transcoorditor/pkg/action"
 	"github.com/barrydevp/transcoorditor/pkg/api"
 	"github.com/barrydevp/transcoorditor/pkg/api/controller"
 	"github.com/barrydevp/transcoorditor/pkg/common"
+	"github.com/barrydevp/transcoorditor/pkg/service"
 	"github.com/barrydevp/transcoorditor/pkg/store"
 )
 
@@ -28,7 +28,7 @@ func ApiServer() {
 	}
 
 	// init action
-	ac := action.NewAction(s)
+	ac := service.NewService(s)
 
 	// add controler
 	ctrl := controller.NewController(ac)
@@ -38,7 +38,7 @@ func ApiServer() {
 	// Run server
 	apiSrv.Run()
 
-    // cleanup
-    s.Close()
+	// cleanup
+	s.Close()
 
 }
