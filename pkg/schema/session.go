@@ -149,3 +149,6 @@ func (s *Session) AbleToCommitOrRollback() error {
 
 	return nil
 }
+
+type SessionSearch struct {
+}

@@ -3,18 +3,18 @@ package service
 import (
 	"time"
 
+	"github.com/barrydevp/transcoorditor/pkg/exception"
 	"github.com/barrydevp/transcoorditor/pkg/schema"
-	"github.com/barrydevp/transcoorditor/pkg/util"
 )
 
 var (
-	ErrSessionNotFound error = util.Errorf("%w: session was not found in storage", ErrNotFound)
+	ErrSessionNotFound error = exception.Errorf("%w: session was not found in storage", exception.ErrNotFound)
 )
 
 func (srv *Service) findSessionById(id string) (*schema.Session, error) {
 	doc, err := srv.s.Session().FindById(id)
 	if err != nil {
-		return nil, util.Errorf("failed to get session: %w", err)
+		return nil, exception.Errorf("failed to get session: %w", err)
 	}
 
 	return doc, nil
@@ -36,7 +36,7 @@ func (srv *Service) GetSessionById(id string, populate bool) (*schema.Session, e
 		parts, err := srv.s.Participant().FindBySessionId(id)
 
 		if err != nil {
-			return nil, util.Errorf("failed to get participants: %w", err)
+			return nil, exception.Errorf("failed to get participants: %w", err)
 		}
 
 		session.Participants = parts
@@ -45,18 +45,34 @@ func (srv *Service) GetSessionById(id string, populate bool) (*schema.Session, e
 	return session, nil
 }
 
-func (srv *Service) DeleteSessionById(id string) (*schema.Session, error) {
-	doc, err := srv.s.Session().FindById(id)
+func (srv *Service) ListSession() ([]*schema.Session, error) {
+	docs, err := srv.s.Session().Find(&schema.SessionSearch{})
 
 	if err != nil {
-		return nil, util.Errorf("failed to delete session: %w", err)
+		return nil, err
 	}
 
-	if doc == nil {
+	return docs, nil
+}
+
+func (srv *Service) DeleteSessionById(id string) (*schema.Session, error) {
+	session, err := srv.s.Session().DeleteById(id)
+	if err != nil {
+		return nil, exception.Errorf("failed to delete session: %w", err)
+	}
+
+	_, err = srv.s.Participant().DeleteBySessionId(id)
+	if err != nil {
+		return nil, exception.Errorf("failed to delete participants of session: %w", err)
+	}
+
+	srv.l.Info("participant deleted count: ", 10)
+
+	if session == nil {
 		return nil, ErrSessionNotFound
 	}
 
-	return doc, nil
+	return session, nil
 }
 
 func (srv *Service) PutSessionById(s *schema.Session) (*schema.Session, error) {
@@ -94,26 +110,26 @@ func (srv *Service) JoinSession(sessionId string, part *schema.Participant) (*sc
 	}
 
 	if err := session.CheckSessionActive(); err != nil {
-		return nil, util.Errorw(err, ErrPreconditionFailed)
+		return nil, exception.Errorw(err, exception.ErrPreconditionFailed)
 	}
 
 	if part.RequestId != "" {
 		// duplicate detection by check exists participant has current requestId
 		dupPart, err := srv.s.Participant().FindDupInSession(sessionId, part)
 		if err != nil {
-			return nil, util.Errorf("failed to check duplicate participant %w", err)
+			return nil, exception.Errorf("failed to check duplicate participant %w", err)
 		}
 
 		if dupPart != nil {
 			// should we throw erro?
-			// return nil, util.Errorf("duplicate participant %v has request %v", part.ClientId, part.RequestId)
+			// return nil, exception.Errorf("duplicate participant %v has request %v", part.ClientId, part.RequestId)
 			return dupPart, nil
 		}
 	}
 
 	partNum, err := srv.s.Participant().CountBySessionId(sessionId)
 	if err != nil {
-		return nil, util.Errorf("failed to get number participant in session %w", err)
+		return nil, exception.Errorf("failed to get number participant in session %w", err)
 	}
 
 	// @TODO: wrap in transaction
@@ -150,21 +166,21 @@ func (srv *Service) PartialCommitSession(sessionId string, partCommit *schema.Pa
 	}
 
 	if part.SessionId != session.Id {
-		return nil, util.Errorf("commit participant not belong to this session. %w", ErrPreconditionFailed)
+		return nil, exception.Errorf("commit participant not belong to this session. %w", exception.ErrPreconditionFailed)
 	}
 
 	if part.State != schema.ParticipantActive {
-		return nil, util.Errorf("this participant has already committed, current state: %v. %w", part.State, ErrPreconditionFailed)
+		return nil, exception.Errorf("this participant has already committed, current state: %v. %w", part.State, exception.ErrPreconditionFailed)
 	}
 
 	part.State = schema.ParticipantCommitted
 
 	if partCommit.Compensate != nil {
-		partCommit.Compensate.Status = schema.PartActionPending
+		partCommit.Compensate.Status = schema.PartActionCreated
 		partCommit.Compensate.InvokedCount = 0
 	}
 	if partCommit.Complete != nil {
-		partCommit.Complete.Status = schema.PartActionPending
+		partCommit.Complete.Status = schema.PartActionCreated
 		partCommit.Complete.InvokedCount = 0
 	}
 
@@ -177,7 +193,7 @@ func (srv *Service) PartialCommitSession(sessionId string, partCommit *schema.Pa
 	// @TODO: wrap in transaction
 	part, err = srv.s.Participant().UpdateBySessionAndId(sessionId, *partCommit.Id, partUpdate)
 	if err != nil {
-		return nil, util.Errorf("failed to commit participant: %w", err)
+		return nil, exception.Errorf("failed to commit participant: %w", err)
 	}
 
 	return part, nil
@@ -187,7 +203,7 @@ func (srv *Service) commitSession(session *schema.Session) (*schema.Session, err
 	var err error = nil
 
 	if err = session.AbleToCommitOrRollback(); err != nil {
-		return nil, util.Errorw(err, ErrPreconditionFailed)
+		return nil, exception.Errorw(err, exception.ErrPreconditionFailed)
 	}
 
 	session.State = schema.SessionCommitting
@@ -199,7 +215,7 @@ func (srv *Service) commitSession(session *schema.Session) (*schema.Session, err
 	if len(errs) > 0 {
 		session.State = schema.SessionCommitFailed
 		session.Errors = errs
-		err = util.Errorf("failed to handle complete action on participants")
+		err = exception.Errorf("failed to handle CompleteAction on participants")
 	} else {
 		session.State = schema.SessionCommitted
 	}
@@ -224,7 +240,7 @@ func (srv *Service) abortSession(session *schema.Session) (*schema.Session, erro
 	var err error = nil
 
 	if err = session.AbleToCommitOrRollback(); err != nil {
-		return nil, util.Errorw(err, ErrPreconditionFailed)
+		return nil, exception.Errorw(err, exception.ErrPreconditionFailed)
 	}
 
 	session.State = schema.SessionAborting
@@ -236,7 +252,7 @@ func (srv *Service) abortSession(session *schema.Session) (*schema.Session, erro
 	if len(errs) > 0 {
 		session.State = schema.SessionAbortFailed
 		session.Errors = errs
-		err = util.Errorf("failed to handle complete srv.ion on participants")
+		err = exception.Errorf("failed to handle CompensateAction on participants")
 	} else {
 		session.State = schema.SessionAborted
 	}

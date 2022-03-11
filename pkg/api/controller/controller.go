@@ -21,13 +21,14 @@ func (ctrl *Controller) PublicRoutes(a *fiber.App) {
 	route := a.Group("/api/v1")
 
 	// register routes
-	route.Get("/session/:sessionId", ctrl.GetSessionById)
-	route.Put("/session/:sessionId", ctrl.PutSessionById)
-	route.Delete("/session/:sessionId", ctrl.DeleteSessionById)
-	route.Post("/session", ctrl.StartSession)
-	route.Post("/session/:sessionId/join", ctrl.JoinSession)
-	route.Post("/session/:sessionId/partial-commit", ctrl.PartialCommit)
-	route.Post("/session/:sessionId/commit", ctrl.CommitSession)
-	route.Post("/session/:sessionId/abort", ctrl.AbortSession)
+	route.Get("/sessions", ctrl.ListSession)
+	route.Get("/sessions/:sessionId", ctrl.GetSessionById)
+	route.Put("/sessions/:sessionId", ctrl.PutSessionById)
+	route.Delete("/sessions/:sessionId", ctrl.DeleteSessionById)
+	route.Post("/sessions", ctrl.StartSession)
+	route.Post("/sessions/:sessionId/join", ctrl.JoinSession)
+	route.Post("/sessions/:sessionId/partial-commit", ctrl.PartialCommit)
+	route.Post("/sessions/:sessionId/commit", ctrl.CommitSession)
+	route.Post("/sessions/:sessionId/abort", ctrl.AbortSession)
 
 }

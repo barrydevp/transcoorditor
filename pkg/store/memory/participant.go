@@ -61,3 +61,7 @@ func (s *Participant) UpdateBySessionAndId(sessionId string, id int64, partUpdat
 func (s *Participant) CountBySessionId(sessionId string) (int64, error) {
 	return 0, nil
 }
+
+func (s *Participant) DeleteBySessionId(sessionId string) (int64, error) {
+	return 0, nil
+}

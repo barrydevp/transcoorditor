@@ -5,7 +5,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-type StoreOptions struct {
+type StoreBase struct {
 	Db *mongo.Database
 	L  *logrus.Entry
 }

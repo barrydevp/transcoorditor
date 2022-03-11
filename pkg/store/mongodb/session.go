@@ -16,15 +16,15 @@ import (
 // memory storage
 // TBD
 type Session struct {
-	*StoreOptions
+	*StoreBase
 	col *mongo.Collection
 }
 
-func NewSession(opts *StoreOptions) *Session {
+func NewSession(opts *StoreBase) *Session {
 
 	return &Session{
-		StoreOptions: opts,
-		col:          opts.Db.Collection("sessions"),
+		StoreBase: opts,
+		col:       opts.Db.Collection("sessions"),
 	}
 }
 
@@ -128,6 +128,34 @@ func (s *Session) FindById(id string) (*schema.Session, error) {
 	return r, nil
 }
 
+func (s *Session) Find(search *schema.SessionSearch) ([]*schema.Session, error) {
+	var results []*schema.Session
+
+	doc, err := util.WithTimeout(func(ctx context.Context) (interface{}, error) {
+		filter := bson.D{}
+
+		cursor, err := s.col.Find(ctx, filter)
+
+		if err != nil {
+			return nil, err
+		}
+
+		if err := cursor.All(ctx, &results); err != nil {
+			return nil, err
+		}
+
+		return results, nil
+	}, 30)
+
+	if err != nil {
+		return nil, err
+	}
+
+	r, _ := doc.([]*schema.Session)
+
+	return r, nil
+}
+
 func (s *Session) UpdateById(id string, schemaUpdate *schema.SessionUpdate) (*schema.Session, error) {
 	update := bson.D{}
 
@@ -163,6 +191,34 @@ func (s *Session) UpdateById(id string, schemaUpdate *schema.SessionUpdate) (*sc
 		opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
 
 		err := s.col.FindOneAndUpdate(ctx, filter, bson.D{{"$set", update}}, opts).Decode(session)
+
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				return nil, nil
+			}
+
+			return nil, err
+		}
+
+		return session, nil
+	}, 10)
+
+	if err != nil {
+		return nil, err
+	}
+
+	r, _ := doc.(*schema.Session)
+
+	return r, nil
+}
+
+func (s *Session) DeleteById(id string) (*schema.Session, error) {
+	session := &schema.Session{}
+
+	doc, err := util.WithTimeout(func(ctx context.Context) (interface{}, error) {
+		filter := bson.D{{"id", id}}
+
+		err := s.col.FindOneAndDelete(ctx, filter).Decode(session)
 
 		if err != nil {
 			if err == mongo.ErrNoDocuments {

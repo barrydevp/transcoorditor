@@ -14,15 +14,25 @@ import (
 // memory storage
 // TBD
 type Participant struct {
-	*StoreOptions
+	*StoreBase
 	col *mongo.Collection
 }
 
-func NewParticipant(opts *StoreOptions) *Participant {
+func NewParticipant(opts *StoreBase) *Participant {
 
 	return &Participant{
-		StoreOptions: opts,
-		col:          opts.Db.Collection("participants"),
+		StoreBase: opts,
+		col:       opts.Db.Collection("participants"),
+	}
+}
+
+func normalizeParticipant(p *schema.Participant) {
+	if p.CompensateAction != nil {
+		p.CompensateAction.Data = TryConvertBsonDToM(p.CompensateAction.Data)
+	}
+
+	if p.CompleteAction != nil {
+		p.CompleteAction.Data = TryConvertBsonDToM(p.CompleteAction.Data)
 	}
 }
 
@@ -94,6 +104,7 @@ func (s *Participant) PutBySessionAndId(sessionId string, id int64, partUpdate *
 			return nil, err
 		}
 
+		normalizeParticipant(part)
 		return part, nil
 	}, 10)
 
@@ -122,6 +133,7 @@ func (s *Participant) FindBySessionAndId(sessionId string, id int64) (*schema.Pa
 			return nil, err
 		}
 
+		normalizeParticipant(part)
 		return part, nil
 	}, 10)
 
@@ -147,12 +159,22 @@ func (s *Participant) FindBySessionId(sessionId string) ([]*schema.Participant, 
 		}
 
 		// @TODO: convert bson.D of compensateAction.data to bson.M?
-		if err := cursor.All(ctx, &results); err != nil {
-			return nil, err
+		// if err := cursor.All(ctx, &results); err != nil {
+		// 	return nil, err
+		// }
+
+		for cursor.Next(ctx) {
+			part := &schema.Participant{}
+			if err := cursor.Decode(&part); err != nil {
+				return nil, err
+			}
+
+			normalizeParticipant(part)
+			results = append(results, part)
 		}
 
 		return results, nil
-	}, 10)
+	}, 30)
 
 	if err != nil {
 		return nil, err
@@ -240,6 +262,8 @@ func (s *Participant) UpdateBySessionAndId(sessionId string, id int64, partUpdat
 			return nil, err
 		}
 
+		normalizeParticipant(part)
+
 		return part, nil
 	}, 10)
 
@@ -263,6 +287,28 @@ func (s *Participant) CountBySessionId(sessionId string) (int64, error) {
 		}
 
 		return count, nil
+	}, 10)
+
+	if err != nil {
+		return -1, err
+	}
+
+	r, _ := doc.(int64)
+
+	return r, nil
+}
+
+func (s *Participant) DeleteBySessionId(sessionId string) (int64, error) {
+	doc, err := util.WithTimeout(func(ctx context.Context) (interface{}, error) {
+		filter := bson.D{{"sessionId", sessionId}}
+
+		result, err := s.col.DeleteMany(ctx, filter)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return result.DeletedCount, nil
 	}, 10)
 
 	if err != nil {

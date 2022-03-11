@@ -67,7 +67,7 @@ func NewMongoDBStore() (Interface, error) {
 
 	db := client.Database(viper.GetString("MONGODB_DB"))
 
-	storeOpts := &mongodb.StoreOptions{
+	storeBase := &mongodb.StoreBase{
 		Db: db,
 		L:  l,
 	}
@@ -76,8 +76,8 @@ func NewMongoDBStore() (Interface, error) {
 		c:           client,
 		db:          db,
 		l:           l,
-		session:     mongodb.NewSession(storeOpts),
-		participant: mongodb.NewParticipant(storeOpts),
+		session:     mongodb.NewSession(storeBase),
+		participant: mongodb.NewParticipant(storeBase),
 	}, nil
 }
 

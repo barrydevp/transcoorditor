@@ -35,6 +35,10 @@ func (s *Session) PutById(id string, schemaUpdate *schema.Session) (*schema.Sess
 	return nil, nil
 }
 
+func (s *Session) Find(search *schema.SessionSearch) ([]*schema.Session, error) {
+	return nil, nil
+}
+
 func (s *Session) FindById(id string) (*schema.Session, error) {
 	data := s.m[id]
 
@@ -53,5 +57,9 @@ func (s *Session) FindById(id string) (*schema.Session, error) {
 }
 
 func (s *Session) UpdateById(id string, schemaUpdate *schema.SessionUpdate) (*schema.Session, error) {
+	return nil, nil
+}
+
+func (s *Session) DeleteById(id string) (*schema.Session, error) {
 	return nil, nil
 }

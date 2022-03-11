@@ -1,24 +1,21 @@
 package service
 
 import (
-	"errors"
-
+	"github.com/barrydevp/transcoorditor/pkg/common"
 	"github.com/barrydevp/transcoorditor/pkg/store"
-)
-
-var (
-	ErrNotFound        = errors.New("NOT_FOUND")
-	ErrInvalidArgument = errors.New("INVALID_ARGUMENT")
-	ErrPreconditionFailed    = errors.New("PRECONDITION_FAILED")
-	ErrAborted         = errors.New("ABORTED")
+	"github.com/sirupsen/logrus"
 )
 
 type Service struct {
 	s store.Interface
+	l *logrus.Entry
 }
 
 func NewService(s store.Interface) *Service {
 	return &Service{
 		s: s,
+		l: common.Logger().WithFields(logrus.Fields{
+			"pkg": "service",
+		}),
 	}
 }
