@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/barrydevp/transcoorditor/pkg/exception"
@@ -8,7 +9,7 @@ import (
 )
 
 var (
-	ErrSessionNotFound error = exception.Errorf("%w: session was not found in storage", exception.ErrNotFound)
+	ErrSessionNotFound = exception.ApiNotFoundFromStr("session was not found in storage")
 )
 
 func (srv *Service) findSessionById(id string) (*schema.Session, error) {
@@ -61,12 +62,12 @@ func (srv *Service) DeleteSessionById(id string) (*schema.Session, error) {
 		return nil, exception.Errorf("failed to delete session: %w", err)
 	}
 
-	_, err = srv.s.Participant().DeleteBySessionId(id)
+	count, err := srv.s.Participant().DeleteBySessionId(id)
 	if err != nil {
 		return nil, exception.Errorf("failed to delete participants of session: %w", err)
 	}
 
-	srv.l.Info("participant deleted count: ", 10)
+	srv.l.Info("participant deleted count: ", count)
 
 	if session == nil {
 		return nil, ErrSessionNotFound
@@ -97,7 +98,7 @@ func (srv *Service) StartSession(s *schema.Session) (*schema.Session, error) {
 	s.UpdatedAt = &now
 
 	if err := srv.s.Session().Save(s); err != nil {
-		return nil, err
+		return nil, exception.Errorf("failed to save session: %w", err)
 	}
 
 	return s, nil
@@ -110,7 +111,7 @@ func (srv *Service) JoinSession(sessionId string, part *schema.Participant) (*sc
 	}
 
 	if err := session.CheckSessionActive(); err != nil {
-		return nil, exception.Errorw(err, exception.ErrPreconditionFailed)
+		return nil, exception.ApiPreconditionFailed(err)
 	}
 
 	if part.RequestId != "" {
@@ -136,7 +137,7 @@ func (srv *Service) JoinSession(sessionId string, part *schema.Participant) (*sc
 	// part.SessionId = s.Id
 	part.Id = partNum + 1
 	if err := srv.s.Participant().Save(part); err != nil {
-		return nil, err
+		return nil, exception.Errorf("failed to save participant", err)
 	}
 
 	// first participant in session, change session State
@@ -157,7 +158,7 @@ func (srv *Service) PartialCommitSession(sessionId string, partCommit *schema.Pa
 		return nil, err
 	}
 	if err := session.CheckSessionActive(); err != nil {
-		return nil, err
+		return nil, exception.ApiPreconditionFailed(err)
 	}
 
 	part, err := srv.findParticipantById(sessionId, *partCommit.Id)
@@ -166,11 +167,11 @@ func (srv *Service) PartialCommitSession(sessionId string, partCommit *schema.Pa
 	}
 
 	if part.SessionId != session.Id {
-		return nil, exception.Errorf("commit participant not belong to this session. %w", exception.ErrPreconditionFailed)
+		return nil, exception.ApiPreconditionFailedFromStr("commit participant not belong to this session.")
 	}
 
 	if part.State != schema.ParticipantActive {
-		return nil, exception.Errorf("this participant has already committed, current state: %v. %w", part.State, exception.ErrPreconditionFailed)
+		return nil, exception.ApiPreconditionFailedFromStr(fmt.Sprintf("this participant has already committed, current state: %v", part.State))
 	}
 
 	part.State = schema.ParticipantCommitted
@@ -203,7 +204,7 @@ func (srv *Service) commitSession(session *schema.Session) (*schema.Session, err
 	var err error = nil
 
 	if err = session.AbleToCommitOrRollback(); err != nil {
-		return nil, exception.Errorw(err, exception.ErrPreconditionFailed)
+		return nil, exception.ApiPreconditionFailed(err)
 	}
 
 	session.State = schema.SessionCommitting
@@ -240,7 +241,7 @@ func (srv *Service) abortSession(session *schema.Session) (*schema.Session, erro
 	var err error = nil
 
 	if err = session.AbleToCommitOrRollback(); err != nil {
-		return nil, exception.Errorw(err, exception.ErrPreconditionFailed)
+		return nil, exception.ApiPreconditionFailed(err)
 	}
 
 	session.State = schema.SessionAborting
@@ -258,7 +259,7 @@ func (srv *Service) abortSession(session *schema.Session) (*schema.Session, erro
 	}
 
 	if _, err := srv.s.Session().UpdateById(session.Id, &schema.SessionUpdate{State: &session.State, Errors: &session.Errors}); err != nil {
-		return nil, err
+		return nil, exception.Errorf("failed to update session: %w", err)
 	}
 
 	return session, err

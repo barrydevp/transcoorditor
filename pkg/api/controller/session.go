@@ -104,7 +104,7 @@ func (ctrl *Controller) PartialCommit(c *fiber.Ctx) error {
 		return util.SendError(c, "unable to parse partial commit session request payload", err)
 	}
 	if err := common.GetValidate().Struct(partCommit); err != nil {
-		return util.SendOK(c, err)
+		return util.SendError(c, "invalid partial commit session request payload", err)
 	}
 
 	part, err := ctrl.srv.PartialCommitSession(sessionId, partCommit)

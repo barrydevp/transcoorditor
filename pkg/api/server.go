@@ -8,6 +8,7 @@ import (
 
 	"github.com/barrydevp/transcoorditor/pkg/common"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
@@ -34,6 +35,15 @@ func (s *ApiServer) WithGracefulShutdown() {
 
 		close(s.CloseCh)
 	}()
+}
+
+func (s *ApiServer) BindCommonMiddleware() {
+	// Logger middelware
+	s.Srv.Use(logger.New(logger.Config{
+		// Format: "${pid} ${locals:requestid} ${status} - ${method} ${path}\n",
+		// Output: os.Stdout,
+	}))
+
 }
 
 // FiberConfig func for configuration Fiber app.
@@ -65,18 +75,23 @@ func NewServer() *ApiServer {
 	// Define new Fiber app with config
 	srv := fiber.New(config)
 
-	return &ApiServer{
+    server := &ApiServer{
 		Srv:     srv,
 		CloseCh: nil,
 		l: common.Logger().WithFields(logrus.Fields{
 			"pkg": "api/server",
 		}),
 	}
+
+    // Common middlewares
+    server.BindCommonMiddleware()
+
+    return server
 }
 
 func (s *ApiServer) Run() {
 
-	// run with graceful shutdown
+	// graceful shutdown
 	s.WithGracefulShutdown()
 
 	// Run server.

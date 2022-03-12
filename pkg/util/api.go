@@ -51,17 +51,18 @@ func SendOK(c *fiber.Ctx, data interface{}) error {
 }
 
 func SendError(c *fiber.Ctx, msg string, err error) error {
-	switch apiErr := err.(type) {
+	var apiErr *exception.ApiError
+
+	switch v := err.(type) {
 	case *exception.ApiError:
-		if apiErr.Msg == "" {
-			apiErr.Msg = msg
-		}
-		return SendApiResponse(c, apiErr)
+		apiErr = v
+	default:
+		apiErr = exception.ApiInternalError(err)
 	}
 
-	return SendApiResponse(c, &exception.ApiError{
-		Msg:        msg,
-		Err:        err,
-		StatusCode: fiber.StatusInternalServerError,
-	})
+	if msg != "" {
+		apiErr.Msg = msg
+	}
+
+	return SendApiResponse(c, apiErr)
 }

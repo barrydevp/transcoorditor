@@ -1,18 +1,24 @@
 package controller
 
 import (
+	"github.com/barrydevp/transcoorditor/pkg/common"
 	"github.com/barrydevp/transcoorditor/pkg/service"
 	"github.com/gofiber/fiber/v2"
+	"github.com/sirupsen/logrus"
 )
 
 type Controller struct {
 	srv *service.Service
+	l   *logrus.Entry
 }
 
 func NewController(srv *service.Service) *Controller {
 
 	return &Controller{
 		srv: srv,
+		l: common.Logger().WithFields(logrus.Fields{
+			"pkg": "ctrl",
+		}),
 	}
 }
 

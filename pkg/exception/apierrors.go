@@ -34,7 +34,10 @@ func (r *ApiError) Response() *fiber.Map {
 	resp := fiber.Map{
 		"ok":  false,
 		"msg": r.Msg,
-		"err": r.Err.Error(),
+	}
+
+	if r.Err != nil {
+		resp["err"] = r.Err.Error()
 	}
 
 	if r.Detail != nil {
@@ -45,7 +48,11 @@ func (r *ApiError) Response() *fiber.Map {
 }
 
 func (r *ApiError) Error() string {
-	return r.Err.Error()
+	if r.Err != nil {
+		return r.Err.Error()
+	}
+
+	return r.Msg
 }
 
 func NewApiError(err error, msg string, status int, detail interface{}) *ApiError {
@@ -63,6 +70,10 @@ func ApiUnauthorized(err error) *ApiError {
 
 func ApiNotFound(err error) *ApiError {
 	return NewApiError(err, "not found", fiber.StatusNotFound, nil)
+}
+
+func ApiNotFoundFromStr(str string) *ApiError {
+    return ApiNotFound(Errorf(str))
 }
 
 func ApiForbidden(err error) *ApiError {
@@ -91,4 +102,12 @@ func ApiInternalError(err error) *ApiError {
 
 func ApiTimeout(err error) *ApiError {
 	return NewApiError(err, "timeout", fiber.StatusGatewayTimeout, nil)
+}
+
+func ApiPreconditionFailed(err error) *ApiError {
+	return NewApiError(err, "precondition failed", fiber.StatusPreconditionFailed, nil)
+}
+
+func ApiPreconditionFailedFromStr(str string) *ApiError {
+	return ApiPreconditionFailed(Errorf(str))
 }
