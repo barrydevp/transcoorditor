@@ -2,6 +2,8 @@ package exception
 
 import (
 	"errors"
+	"fmt"
+
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -16,7 +18,7 @@ var (
 )
 
 type ApiError struct {
-	Err        error
+	err        error
 	Msg        string
 	StatusCode int
 	Detail     interface{}
@@ -36,8 +38,8 @@ func (r *ApiError) Response() *fiber.Map {
 		"msg": r.Msg,
 	}
 
-	if r.Err != nil {
-		resp["err"] = r.Err.Error()
+	if r.err != nil {
+		resp["err"] = r.err.Error()
 	}
 
 	if r.Detail != nil {
@@ -47,9 +49,13 @@ func (r *ApiError) Response() *fiber.Map {
 	return &resp
 }
 
+func (r *ApiError) Err() error {
+	return r.err
+}
+
 func (r *ApiError) Error() string {
-	if r.Err != nil {
-		return r.Err.Error()
+	if r.err != nil {
+		return r.err.Error()
 	}
 
 	return r.Msg
@@ -57,11 +63,15 @@ func (r *ApiError) Error() string {
 
 func NewApiError(err error, msg string, status int, detail interface{}) *ApiError {
 	return &ApiError{
-		Err:        err,
+		err:        err,
 		Msg:        msg,
 		StatusCode: status,
 		Detail:     detail,
 	}
+}
+
+func ApiErrorf(status int, msg string, format string, a ...interface{}) *ApiError {
+	return NewApiError(fmt.Errorf(format, a...), msg, status, nil)
 }
 
 func ApiUnauthorized(err error) *ApiError {
@@ -72,8 +82,8 @@ func ApiNotFound(err error) *ApiError {
 	return NewApiError(err, "not found", fiber.StatusNotFound, nil)
 }
 
-func ApiNotFoundFromStr(str string) *ApiError {
-    return ApiNotFound(Errorf(str))
+func ApiNotFoundf(format string, a ...interface{}) *ApiError {
+	return ApiNotFound(fmt.Errorf(format, a...))
 }
 
 func ApiForbidden(err error) *ApiError {
@@ -108,6 +118,14 @@ func ApiPreconditionFailed(err error) *ApiError {
 	return NewApiError(err, "precondition failed", fiber.StatusPreconditionFailed, nil)
 }
 
-func ApiPreconditionFailedFromStr(str string) *ApiError {
-	return ApiPreconditionFailed(Errorf(str))
+func ApiPreconditionFailedf(format string, a ...interface{}) *ApiError {
+	return ApiPreconditionFailed(fmt.Errorf(format, a...))
+}
+
+func ApiUnprocessableEntity(err error) *ApiError {
+	return NewApiError(err, "unprosessable entity", fiber.StatusUnprocessableEntity, nil)
+}
+
+func ApiUnprocessableEntityf(format string, a ...interface{}) *ApiError {
+	return ApiUnprocessableEntity(fmt.Errorf(format, a...))
 }

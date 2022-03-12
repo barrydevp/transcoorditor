@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/barrydevp/transcoorditor/pkg/exception"
@@ -9,7 +8,7 @@ import (
 )
 
 var (
-	ErrSessionNotFound = exception.ApiNotFoundFromStr("session was not found in storage")
+	ErrSessionNotFound = exception.ApiNotFoundf("session was not found in storage")
 )
 
 func (srv *Service) findSessionById(id string) (*schema.Session, error) {
@@ -167,11 +166,11 @@ func (srv *Service) PartialCommitSession(sessionId string, partCommit *schema.Pa
 	}
 
 	if part.SessionId != session.Id {
-		return nil, exception.ApiPreconditionFailedFromStr("commit participant not belong to this session.")
+		return nil, exception.ApiPreconditionFailedf("commit participant not belong to this session.")
 	}
 
 	if part.State != schema.ParticipantActive {
-		return nil, exception.ApiPreconditionFailedFromStr(fmt.Sprintf("this participant has already committed, current state: %v", part.State))
+		return nil, exception.ApiPreconditionFailedf("this participant has already committed, current state: %v", part.State)
 	}
 
 	part.State = schema.ParticipantCommitted
@@ -216,12 +215,15 @@ func (srv *Service) commitSession(session *schema.Session) (*schema.Session, err
 	if len(errs) > 0 {
 		session.State = schema.SessionCommitFailed
 		session.Errors = errs
-		err = exception.Errorf("failed to handle CompleteAction on participants")
+		apiErr := exception.ApiUnprocessableEntityf("failed to handle CompleteAction on participants")
+		// inject detail
+		apiErr.Detail = session
+		err = apiErr
 	} else {
 		session.State = schema.SessionCommitted
 	}
 
-	if _, err = srv.s.Session().UpdateById(session.Id, &schema.SessionUpdate{State: &session.State, Errors: &session.Errors}); err != nil {
+    if _, err := srv.s.Session().UpdateById(session.Id, &schema.SessionUpdate{State: &session.State, Errors: &session.Errors}); err != nil {
 		return nil, err
 	}
 
@@ -253,7 +255,10 @@ func (srv *Service) abortSession(session *schema.Session) (*schema.Session, erro
 	if len(errs) > 0 {
 		session.State = schema.SessionAbortFailed
 		session.Errors = errs
-		err = exception.Errorf("failed to handle CompensateAction on participants")
+		apiErr := exception.ApiUnprocessableEntityf("failed to handle CompensateAction on participants")
+		// inject detail
+		apiErr.Detail = session
+		err = apiErr
 	} else {
 		session.State = schema.SessionAborted
 	}

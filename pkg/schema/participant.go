@@ -2,6 +2,7 @@ package schema
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 
 var (
 	ErrActionRequestFailed = errors.New("action request failed")
-	ErrInvalidActionUri    = exception.Errorf("invalid action's uri. %w", exception.ErrInvalidArgument)
+	ErrInvalidActionUri    = fmt.Errorf("invalid action's uri. %w", exception.ErrInvalidArgument)
 )
 
 type PartActionStatus string
@@ -107,8 +108,7 @@ func (pa *ParticipantAction) InvokePartAction() error {
 	err := pa.ValidateAction()
 
 	if err == nil {
-		resp, reqErr := pa.requestActionHTTP()
-		err = result.ParseRestyResp(resp, reqErr)
+		err = result.ParseRestyResp(pa.requestActionHTTP())
 	}
 
 	if err != nil {

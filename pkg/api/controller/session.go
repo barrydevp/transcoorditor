@@ -118,21 +118,21 @@ func (ctrl *Controller) PartialCommit(c *fiber.Ctx) error {
 func (ctrl *Controller) CommitSession(c *fiber.Ctx) error {
 	sessionId := c.Params("sessionId")
 
-	part, err := ctrl.srv.CommitSession(sessionId)
+	session, err := ctrl.srv.CommitSession(sessionId)
 	if err != nil {
 		return util.SendError(c, "unable to commit session", err)
 	}
 
-	return util.SendOK(c, part)
+	return util.SendOK(c, session)
 }
 
 func (ctrl *Controller) AbortSession(c *fiber.Ctx) error {
 	sessionId := c.Params("sessionId")
 
-	part, err := ctrl.srv.AbortSession(sessionId)
+	session, err := ctrl.srv.AbortSession(sessionId)
 	if err != nil {
 		return util.SendError(c, "unable to abort session", err)
 	}
 
-	return util.SendOK(c, part)
+	return util.SendOK(c, session)
 }
