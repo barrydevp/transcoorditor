@@ -13,16 +13,16 @@ import (
 
 // memory storage
 // TBD
-type Participant struct {
-	*StoreBase
+type participantRepo struct {
+	*baseRepo
 	col *mongo.Collection
 }
 
-func NewParticipant(opts *StoreBase) *Participant {
+func NewParticipant(opts *baseRepo) *participantRepo {
 
-	return &Participant{
-		StoreBase: opts,
-		col:       opts.Db.Collection("participants"),
+	return &participantRepo{
+		baseRepo: opts,
+		col:      opts.Db.Collection("participants"),
 	}
 }
 
@@ -36,7 +36,7 @@ func normalizeParticipant(p *schema.Participant) {
 	}
 }
 
-func (s *Participant) Save(part *schema.Participant) error {
+func (s *participantRepo) Save(part *schema.Participant) error {
 	if _, err := util.WithTimeout(func(ctx context.Context) (interface{}, error) {
 		inserted, err := s.col.InsertOne(ctx, part)
 
@@ -52,7 +52,7 @@ func (s *Participant) Save(part *schema.Participant) error {
 	return nil
 }
 
-func (s *Participant) PutBySessionAndId(sessionId string, id int64, partUpdate *schema.Participant) (*schema.Participant, error) {
+func (s *participantRepo) PutBySessionAndId(sessionId string, id int64, partUpdate *schema.Participant) (*schema.Participant, error) {
 	update := bson.D{}
 
 	if partUpdate.State != "" {
@@ -117,7 +117,7 @@ func (s *Participant) PutBySessionAndId(sessionId string, id int64, partUpdate *
 	return r, nil
 }
 
-func (s *Participant) FindBySessionAndId(sessionId string, id int64) (*schema.Participant, error) {
+func (s *participantRepo) FindBySessionAndId(sessionId string, id int64) (*schema.Participant, error) {
 	part := &schema.Participant{}
 
 	doc, err := util.WithTimeout(func(ctx context.Context) (interface{}, error) {
@@ -146,7 +146,7 @@ func (s *Participant) FindBySessionAndId(sessionId string, id int64) (*schema.Pa
 	return r, nil
 }
 
-func (s *Participant) FindBySessionId(sessionId string) ([]*schema.Participant, error) {
+func (s *participantRepo) FindBySessionId(sessionId string) ([]*schema.Participant, error) {
 	var results []*schema.Participant
 
 	doc, err := util.WithTimeout(func(ctx context.Context) (interface{}, error) {
@@ -185,7 +185,7 @@ func (s *Participant) FindBySessionId(sessionId string) ([]*schema.Participant, 
 	return r, nil
 }
 
-func (s *Participant) FindDupInSession(sessionId string, part *schema.Participant) (*schema.Participant, error) {
+func (s *participantRepo) FindDupInSession(sessionId string, part *schema.Participant) (*schema.Participant, error) {
 	dupPart := &schema.Participant{}
 
 	doc, err := util.WithTimeout(func(ctx context.Context) (interface{}, error) {
@@ -218,7 +218,7 @@ func (s *Participant) FindDupInSession(sessionId string, part *schema.Participan
 	return r, nil
 }
 
-func (s *Participant) UpdateBySessionAndId(sessionId string, id int64, partUpdate *schema.ParticipantUpdate) (*schema.Participant, error) {
+func (s *participantRepo) UpdateBySessionAndId(sessionId string, id int64, partUpdate *schema.ParticipantUpdate) (*schema.Participant, error) {
 	update := bson.D{}
 
 	if partUpdate.State != nil {
@@ -276,7 +276,7 @@ func (s *Participant) UpdateBySessionAndId(sessionId string, id int64, partUpdat
 	return r, nil
 }
 
-func (s *Participant) CountBySessionId(sessionId string) (int64, error) {
+func (s *participantRepo) CountBySessionId(sessionId string) (int64, error) {
 	doc, err := util.WithTimeout(func(ctx context.Context) (interface{}, error) {
 		filter := bson.D{{"sessionId", sessionId}}
 
@@ -298,7 +298,7 @@ func (s *Participant) CountBySessionId(sessionId string) (int64, error) {
 	return r, nil
 }
 
-func (s *Participant) DeleteBySessionId(sessionId string) (int64, error) {
+func (s *participantRepo) DeleteBySessionId(sessionId string) (int64, error) {
 	doc, err := util.WithTimeout(func(ctx context.Context) (interface{}, error) {
 		filter := bson.D{{"sessionId", sessionId}}
 

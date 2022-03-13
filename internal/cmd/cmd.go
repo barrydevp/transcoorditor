@@ -7,7 +7,8 @@ import (
 	"github.com/barrydevp/transcoorditor/pkg/api/controller"
 	"github.com/barrydevp/transcoorditor/pkg/common"
 	"github.com/barrydevp/transcoorditor/pkg/service"
-	"github.com/barrydevp/transcoorditor/pkg/store"
+	"github.com/barrydevp/transcoorditor/pkg/store/exclusive"
+	"github.com/barrydevp/transcoorditor/pkg/store/mongodb"
 )
 
 var envFile = ".env"
@@ -22,10 +23,12 @@ func ApiServer() {
 
 	// init storage
 	// s, err := store.NewMemoryStore()
-	s, err := store.NewMongoDBStore()
+	s, err := mongodb.NewStore()
 	if err != nil {
 		panic(err)
 	}
+	// add process synchronize exclusive locking when access data
+	s, err = exclusive.NewStore(s)
 
 	// init action
 	ac := service.NewService(s)

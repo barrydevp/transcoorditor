@@ -81,6 +81,10 @@ func (s *Session) IsTimeout() bool {
 	return time.Now().After(s.StartedAt.Add(time.Second * time.Duration(s.Timeout)))
 }
 
+func (s *Session) IsTerminated() bool {
+    return s.State == SessionCommitted || s.State == SessionAborted
+}
+
 func (s *Session) CheckSessionActive() error {
 	if s.State == SessionNew {
 		return util.Errorf("session was not started")

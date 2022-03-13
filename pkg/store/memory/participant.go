@@ -7,28 +7,28 @@ import (
 
 // memory storage
 // TBD
-type Participant struct {
+type participantRepo struct {
 	m map[int64]interface{}
 }
 
-func NewParticipant() *Participant {
+func NewParticipant() *participantRepo {
 
-	return &Participant{
+	return &participantRepo{
 		m: make(map[int64]interface{}),
 	}
 }
 
-func (s *Participant) Save(part *schema.Participant) error {
+func (s *participantRepo) Save(part *schema.Participant) error {
 	s.m[part.Id] = part
 
 	return nil
 }
 
-func (s *Participant) PutBySessionAndId(sessionId string, id int64, part *schema.Participant) (*schema.Participant, error) {
+func (s *participantRepo) PutBySessionAndId(sessionId string, id int64, part *schema.Participant) (*schema.Participant, error) {
 	return nil, nil
 }
 
-func (s *Participant) FindBySessionAndId(sessionId string, id int64) (*schema.Participant, error) {
+func (s *participantRepo) FindBySessionAndId(sessionId string, id int64) (*schema.Participant, error) {
 	data := s.m[id]
 
 	if data == nil {
@@ -46,22 +46,22 @@ func (s *Participant) FindBySessionAndId(sessionId string, id int64) (*schema.Pa
 }
 
 // @TODO
-func (s *Participant) FindBySessionId(sessionId string) ([]*schema.Participant, error) {
+func (s *participantRepo) FindBySessionId(sessionId string) ([]*schema.Participant, error) {
 	return nil, nil
 }
 
-func (s *Participant) FindDupInSession(sessionId string, part *schema.Participant) (*schema.Participant, error) {
+func (s *participantRepo) FindDupInSession(sessionId string, part *schema.Participant) (*schema.Participant, error) {
 	return nil, nil
 }
 
-func (s *Participant) UpdateBySessionAndId(sessionId string, id int64, partUpdate *schema.ParticipantUpdate) (*schema.Participant, error) {
+func (s *participantRepo) UpdateBySessionAndId(sessionId string, id int64, partUpdate *schema.ParticipantUpdate) (*schema.Participant, error) {
 	return nil, nil
 }
 
-func (s *Participant) CountBySessionId(sessionId string) (int64, error) {
+func (s *participantRepo) CountBySessionId(sessionId string) (int64, error) {
 	return 0, nil
 }
 
-func (s *Participant) DeleteBySessionId(sessionId string) (int64, error) {
+func (s *participantRepo) DeleteBySessionId(sessionId string) (int64, error) {
 	return 0, nil
 }

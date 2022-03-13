@@ -13,22 +13,20 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// memory storage
-// TBD
-type Session struct {
-	*StoreBase
+type sessionRepo struct {
+	*baseRepo
 	col *mongo.Collection
 }
 
-func NewSession(opts *StoreBase) *Session {
+func NewSession(opts *baseRepo) *sessionRepo {
 
-	return &Session{
-		StoreBase: opts,
-		col:       opts.Db.Collection("sessions"),
+	return &sessionRepo{
+		baseRepo: opts,
+		col:      opts.Db.Collection("sessions"),
 	}
 }
 
-func (s *Session) Save(session *schema.Session) error {
+func (s *sessionRepo) Save(session *schema.Session) error {
 	if _, err := util.WithTimeout(func(ctx context.Context) (interface{}, error) {
 		inserted, err := s.col.InsertOne(ctx, session)
 
@@ -44,7 +42,7 @@ func (s *Session) Save(session *schema.Session) error {
 	return nil
 }
 
-func (s *Session) PutById(id string, schemaUpdate *schema.Session) (*schema.Session, error) {
+func (s *sessionRepo) PutById(id string, schemaUpdate *schema.Session) (*schema.Session, error) {
 	update := bson.D{}
 
 	if schemaUpdate.State != "" {
@@ -100,7 +98,7 @@ func (s *Session) PutById(id string, schemaUpdate *schema.Session) (*schema.Sess
 	return r, nil
 }
 
-func (s *Session) FindById(id string) (*schema.Session, error) {
+func (s *sessionRepo) FindById(id string) (*schema.Session, error) {
 	session := &schema.Session{}
 
 	doc, err := util.WithTimeout(func(ctx context.Context) (interface{}, error) {
@@ -128,7 +126,7 @@ func (s *Session) FindById(id string) (*schema.Session, error) {
 	return r, nil
 }
 
-func (s *Session) Find(search *schema.SessionSearch) ([]*schema.Session, error) {
+func (s *sessionRepo) Find(search *schema.SessionSearch) ([]*schema.Session, error) {
 	var results []*schema.Session
 
 	doc, err := util.WithTimeout(func(ctx context.Context) (interface{}, error) {
@@ -156,7 +154,7 @@ func (s *Session) Find(search *schema.SessionSearch) ([]*schema.Session, error) 
 	return r, nil
 }
 
-func (s *Session) UpdateById(id string, schemaUpdate *schema.SessionUpdate) (*schema.Session, error) {
+func (s *sessionRepo) UpdateById(id string, schemaUpdate *schema.SessionUpdate) (*schema.Session, error) {
 	update := bson.D{}
 
 	if schemaUpdate.State != nil {
@@ -212,7 +210,7 @@ func (s *Session) UpdateById(id string, schemaUpdate *schema.SessionUpdate) (*sc
 	return r, nil
 }
 
-func (s *Session) DeleteById(id string) (*schema.Session, error) {
+func (s *sessionRepo) DeleteById(id string) (*schema.Session, error) {
 	session := &schema.Session{}
 
 	doc, err := util.WithTimeout(func(ctx context.Context) (interface{}, error) {
