@@ -1,11 +1,13 @@
 package exclusive
 
 import (
+	// "github.com/barrydevp/lockey"
 	"github.com/barrydevp/transcoorditor/pkg/store"
 	"github.com/barrydevp/transcoorditor/pkg/util"
 )
 
 type baseRepo struct {
+	// rwLocks *lockey.RWLockKey
 	rwLocks *util.RWLockKey
 }
 
@@ -33,6 +35,7 @@ func (s *baseRepo) withRLock(key string, exFn exclusiveFunc) {
 
 func newBaseRepo() *baseRepo {
 	return &baseRepo{
+		// rwLocks: lockey.NewRWLockKey(),
 		rwLocks: util.NewRWLockKey(),
 	}
 }

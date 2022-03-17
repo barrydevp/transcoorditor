@@ -17,6 +17,10 @@ func (srv *Service) findSessionById(id string) (*schema.Session, error) {
 		return nil, exception.Errorf("failed to get session: %w", err)
 	}
 
+	if doc == nil {
+		return nil, ErrSessionNotFound
+	}
+
 	return doc, nil
 }
 
@@ -28,9 +32,9 @@ func (srv *Service) GetSessionById(id string, populate bool) (*schema.Session, e
 		return nil, err
 	}
 
-	if session == nil {
-		return nil, ErrSessionNotFound
-	}
+	// if session == nil {
+	// 	return nil, ErrSessionNotFound
+	// }
 
 	if populate {
 		parts, err := srv.s.Participant().FindBySessionId(id)
@@ -223,7 +227,7 @@ func (srv *Service) commitSession(session *schema.Session) (*schema.Session, err
 		session.State = schema.SessionCommitted
 	}
 
-    if _, err := srv.s.Session().UpdateById(session.Id, &schema.SessionUpdate{State: &session.State, Errors: &session.Errors}); err != nil {
+	if _, err := srv.s.Session().UpdateById(session.Id, &schema.SessionUpdate{State: &session.State, Errors: &session.Errors}); err != nil {
 		return nil, err
 	}
 
@@ -247,10 +251,12 @@ func (srv *Service) abortSession(session *schema.Session) (*schema.Session, erro
 	}
 
 	session.State = schema.SessionAborting
+    srv.l.Info("1")
 	if _, err := srv.s.Session().UpdateById(session.Id, &schema.SessionUpdate{State: &session.State}); err != nil {
 		return nil, err
 	}
 
+    srv.l.Info("2")
 	errs := srv.handlePartCompensate(session)
 	if len(errs) > 0 {
 		session.State = schema.SessionAbortFailed
@@ -263,9 +269,11 @@ func (srv *Service) abortSession(session *schema.Session) (*schema.Session, erro
 		session.State = schema.SessionAborted
 	}
 
+    srv.l.Info("3")
 	if _, err := srv.s.Session().UpdateById(session.Id, &schema.SessionUpdate{State: &session.State, Errors: &session.Errors}); err != nil {
 		return nil, exception.Errorf("failed to update session: %w", err)
 	}
+    srv.l.Info("4")
 
 	return session, err
 }

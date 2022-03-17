@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 )
@@ -83,13 +84,17 @@ func (l *RWLockKey) putLock(key string) *rwLock {
 }
 
 func (l *RWLockKey) Lock(key string) {
+	fmt.Println("lock0", key, l.locks)
 	l.getLock(key).Lock()
+	fmt.Println("lock", key,  l.locks)
 }
 
 func (l *RWLockKey) Unlock(key string) {
+	fmt.Println("unlock0", key, l.locks)
 	if lock := l.putLock(key); lock != nil {
 		lock.Unlock()
 	}
+	fmt.Println("unlock", key, l.locks)
 }
 
 func (l *RWLockKey) RLock(key string) {
@@ -101,4 +106,3 @@ func (l *RWLockKey) RUnlock(key string) {
 		lock.RUnlock()
 	}
 }
-

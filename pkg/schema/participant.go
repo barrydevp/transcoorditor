@@ -146,7 +146,7 @@ type Participant struct {
 	State            ParticipantState   `json:"state" bson:"state"`
 	CompensateAction *ParticipantAction `json:"compensateAction,omitempty" bson:"compensateAction,omitempty"`
 	CompleteAction   *ParticipantAction `json:"completeAction,omitempty" bson:"completeAction,omitempty"`
-	UpdatedAt        *time.Time         `json:"updatedAt,omitempty" json:"bson,omitempty"`
+	UpdatedAt        *time.Time         `json:"updatedAt,omitempty" bson:"updatedAt,omitempty"`
 	CreatedAt        *time.Time         `json:"createdAt" bson:"createdAt"`
 }
 
@@ -181,6 +181,6 @@ type ParticipantUpdate struct {
 
 type ParticipantCommit struct {
 	Id         *int64             `json:"participantId" validate:"required"`
-	Compensate *ParticipantAction `json:"compensate" validate:"required"`
+	Compensate *ParticipantAction `json:"compensate"`
 	Complete   *ParticipantAction `json:"complete"`
 }
