@@ -99,6 +99,7 @@ func (r *ScheduleReconciler) getExpiredEntriesAndNext(now time.Time) ([]Schedule
 	return expireds, nil
 }
 
+// this must be called once at a time (mean you must Lock the mutex)
 func (r *ScheduleReconciler) interupt() {
 	// if reconciler is waiting, signal it and set watiting to false
 	if r.interruptCh != nil && r.waiting {
@@ -139,7 +140,7 @@ func (r *ScheduleReconciler) Reconcile(stopCh <-chan struct{}) {
 		// handle expired entries
 		skipWait := r.handleExpiredEntries(expireds)
 		if skipWait {
-            continue
+			continue
 		}
 
 		// waiting phase
@@ -162,10 +163,9 @@ func (r *ScheduleReconciler) Reconcile(stopCh <-chan struct{}) {
 		select {
 		case <-timer.C:
 			// next expired
-		// case en := <-*r.addCh:
 		case <-*r.interruptCh:
 			logger.Info("received new entry")
-			// remove current timer timer.Stop() push to schedule queue and continue the loopr r.pushScheQueue(en) case <-stopCh:
+		case <-stopCh:
 			// received stop sigal
 			// @TODO cleanup code
 			break
