@@ -33,6 +33,10 @@ func (s *sessionRepo) Find(search *schema.SessionSearch) (sessions []*schema.Ses
 	return s.s.Find(search)
 }
 
+func (s *sessionRepo) FindAllUnfinished() ([]*schema.Session, error) {
+	return s.s.FindAllUnfinished()
+}
+
 func (s *sessionRepo) FindById(id string) (session *schema.Session, err error) {
 	s.withLock(id, func() {
 		session, err = s.s.FindById(id)

@@ -61,6 +61,10 @@ func (s *sessionRepo) PutById(id string, schemaUpdate *schema.Session) (*schema.
 		update = append(update, bson.E{"timeout", schemaUpdate.Timeout})
 	}
 
+	if schemaUpdate.Retries != 0 {
+		update = append(update, bson.E{"retries", schemaUpdate.Retries})
+	}
+
 	// no changes
 	if len(update) == 0 {
 		return s.FindById(id)
@@ -154,6 +158,45 @@ func (s *sessionRepo) Find(search *schema.SessionSearch) ([]*schema.Session, err
 	return r, nil
 }
 
+func (s *sessionRepo) FindAllUnfinished() ([]*schema.Session, error) {
+	var results []*schema.Session
+
+	doc, err := util.WithTimeout(func(ctx context.Context) (interface{}, error) {
+		filter := bson.D{{
+			"state", bson.D{{
+				"$in", []string{
+					schema.SessionStarted,
+					schema.SessionActive,
+					schema.SessionCommitting,
+					schema.SessionCommitFailed,
+					schema.SessionAborting,
+					schema.SessionAbortFailed,
+				},
+			}},
+		}}
+
+		cursor, err := s.col.Find(ctx, filter)
+
+		if err != nil {
+			return nil, err
+		}
+
+		if err := cursor.All(ctx, &results); err != nil {
+			return nil, err
+		}
+
+		return results, nil
+	}, 30)
+
+	if err != nil {
+		return nil, err
+	}
+
+	r, _ := doc.([]*schema.Session)
+
+	return r, nil
+}
+
 func (s *sessionRepo) UpdateById(id string, schemaUpdate *schema.SessionUpdate) (*schema.Session, error) {
 	update := bson.D{}
 
@@ -171,6 +214,10 @@ func (s *sessionRepo) UpdateById(id string, schemaUpdate *schema.SessionUpdate) 
 
 	if schemaUpdate.Timeout != nil {
 		update = append(update, bson.E{"timeout", schemaUpdate.Timeout})
+	}
+
+	if schemaUpdate.Retries != nil {
+		update = append(update, bson.E{"retries", schemaUpdate.Retries})
 	}
 
 	// no changes

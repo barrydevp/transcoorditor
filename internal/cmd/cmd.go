@@ -3,9 +3,10 @@ package cmd
 import (
 	"path/filepath"
 
-	"github.com/barrydevp/transcoorditor/pkg/api"
-	"github.com/barrydevp/transcoorditor/pkg/api/controller"
+	"github.com/barrydevp/transcoorditor/pkg/app"
+	"github.com/barrydevp/transcoorditor/pkg/app/controller"
 	"github.com/barrydevp/transcoorditor/pkg/common"
+	"github.com/barrydevp/transcoorditor/pkg/controlplane"
 	"github.com/barrydevp/transcoorditor/pkg/service"
 	"github.com/barrydevp/transcoorditor/pkg/store/exclusive"
 	"github.com/barrydevp/transcoorditor/pkg/store/mongodb"
@@ -13,13 +14,13 @@ import (
 
 var envFile = ".env"
 
-func ApiServer() {
+func RunApp() {
 	// Loading env into viper config
 	common.InitEnv(filepath.Join("./", envFile))
 	common.InitLogger()
 
 	// init api server
-	apiSrv := api.NewServer()
+	apiSrv := app.NewServer()
 
 	// init storage
 	// s, err := store.NewMemoryStore()
@@ -33,15 +34,24 @@ func ApiServer() {
 	// init action
 	ac := service.NewService(s)
 
+	// init controlplane
+	ctrlplane := controlplane.New()
+
 	// add controler
 	ctrl := controller.NewController(ac)
 	// register routes
 	ctrl.PublicRoutes(apiSrv.Srv)
+	// register reconciler
+	ctrl.RegisterReconciler(ctrlplane)
 
-	// Run server
+	// Run controlplane
+	ctrlplane.Start()
+
+	// Run server -> Start blocking from here
 	apiSrv.Run()
 
 	// cleanup
+	ctrlplane.Stop()
 	s.Close()
 
 }

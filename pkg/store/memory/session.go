@@ -32,6 +32,10 @@ func (s *sessionRepo) Find(search *schema.SessionSearch) ([]*schema.Session, err
 	return nil, nil
 }
 
+func (s *sessionRepo) FindAllUnfinished() ([]*schema.Session, error) {
+	return nil, nil
+}
+
 func (s *sessionRepo) FindById(id string) (*schema.Session, error) {
 	data := s.m[id]
 

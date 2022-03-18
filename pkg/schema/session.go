@@ -20,6 +20,7 @@ const (
 	SessionAborting                  = "Aborting"
 	SessionAborted                   = "Aborted"
 	SessionAbortFailed               = "AbortFailed"
+	SessionTerminated                = "Terminated" // timeout session was auto terminated
 )
 
 type SessionOptions struct {
@@ -48,6 +49,7 @@ type Session struct {
 	StartedAt *time.Time   `json:"startedAt,omitempty" bson:"startedAt,omitempty"`
 	CreatedAt *time.Time   `json:"createdAt,omitempty" bson:"createdAt,omitempty"`
 	Errors    []string     `json:"errors,omitempty" bson:"errors,omitempty"`
+	Retries   int          `json:"retries" bons:"retries"`
 
 	// for edges field (relations associate field)
 	Participants []*Participant `json:"participants,omitempty" bson:"-"`
@@ -59,6 +61,7 @@ type SessionUpdate struct {
 	Timeout   *int `json:"timeout"`
 	UpdatedAt *time.Time
 	StartedAt *time.Time
+	Retries   *int
 }
 
 func NewSession(opts *SessionOptions) *Session {
@@ -73,16 +76,20 @@ func NewSession(opts *SessionOptions) *Session {
 	}
 }
 
+func (s *Session) TimedoutAt() time.Time {
+	return s.StartedAt.Add(time.Second * time.Duration(s.Timeout))
+}
+
 func (s *Session) IsTimeout() bool {
 	if s.StartedAt == nil {
 		return false
 	}
 
-	return time.Now().After(s.StartedAt.Add(time.Second * time.Duration(s.Timeout)))
+	return time.Now().After(s.TimedoutAt())
 }
 
 func (s *Session) IsTerminated() bool {
-    return s.State == SessionCommitted || s.State == SessionAborted
+	return s.State == SessionCommitted || s.State == SessionAborted || s.State == SessionTerminated
 }
 
 func (s *Session) CheckSessionActive() error {
@@ -155,4 +162,5 @@ func (s *Session) AbleToCommitOrRollback() error {
 }
 
 type SessionSearch struct {
+	State *string
 }

@@ -50,6 +50,7 @@ type exclusiveStore struct {
 
 func NewStore(store store.Interface) (store.Interface, error) {
 	return &exclusiveStore{
+		s:           store,
 		session:     NewSession(store.Session()),
 		participant: NewParticipant(store.Participant()),
 	}, nil
@@ -57,7 +58,7 @@ func NewStore(store store.Interface) (store.Interface, error) {
 
 // @overide
 func (s *exclusiveStore) Close() {
-
+	s.s.Close()
 }
 
 func (s *exclusiveStore) Session() store.Session {

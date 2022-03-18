@@ -8,7 +8,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func (ctrl *Controller) GetSessionById(c *fiber.Ctx) error {
+func (ctrl *Controller) GetSessionByIdHttp(c *fiber.Ctx) error {
 	sessionId := c.Params("sessionId")
 
 	session, err := ctrl.srv.GetSessionById(sessionId, true)
@@ -19,7 +19,7 @@ func (ctrl *Controller) GetSessionById(c *fiber.Ctx) error {
 	return util.SendOK(c, session)
 }
 
-func (ctrl *Controller) ListSession(c *fiber.Ctx) error {
+func (ctrl *Controller) ListSessionHttp(c *fiber.Ctx) error {
 	session, err := ctrl.srv.ListSession()
 
 	if err != nil {
@@ -29,7 +29,7 @@ func (ctrl *Controller) ListSession(c *fiber.Ctx) error {
 	return util.SendOK(c, session)
 }
 
-func (ctrl *Controller) PutSessionById(c *fiber.Ctx) error {
+func (ctrl *Controller) PutSessionByIdHttp(c *fiber.Ctx) error {
 	sessionId := c.Params("sessionId")
 
 	session := &schema.Session{}
@@ -47,7 +47,7 @@ func (ctrl *Controller) PutSessionById(c *fiber.Ctx) error {
 	return util.SendOK(c, session)
 }
 
-func (ctrl *Controller) DeleteSessionById(c *fiber.Ctx) error {
+func (ctrl *Controller) DeleteSessionByIdHttp(c *fiber.Ctx) error {
 	sessionId := c.Params("sessionId")
 
 	session, err := ctrl.srv.DeleteSessionById(sessionId)
@@ -58,7 +58,7 @@ func (ctrl *Controller) DeleteSessionById(c *fiber.Ctx) error {
 	return util.SendOK(c, session)
 }
 
-func (ctrl *Controller) StartSession(c *fiber.Ctx) error {
+func (ctrl *Controller) StartSessionHttp(c *fiber.Ctx) error {
 	sessionOpts := schema.NewSessionOption()
 	if err := c.BodyParser(sessionOpts); err != nil {
 		return util.SendError(c, "unable to parse start session request payload", err)
@@ -69,10 +69,16 @@ func (ctrl *Controller) StartSession(c *fiber.Ctx) error {
 		return util.SendError(c, "unable to start new session", err)
 	}
 
+	// schedule the cleanup of session when timeout
+	ctrl.recl.Schedule(&TimeoutSessionEntry{
+		TimedoutAt: session.TimedoutAt(),
+		SessionId:  session.Id,
+	})
+
 	return util.SendOK(c, session)
 }
 
-func (ctrl *Controller) JoinSession(c *fiber.Ctx) error {
+func (ctrl *Controller) JoinSessionHttp(c *fiber.Ctx) error {
 	sessionId := c.Params("sessionId")
 
 	partJoinBody := &schema.ParticipantJoinBody{}
@@ -96,7 +102,7 @@ func (ctrl *Controller) JoinSession(c *fiber.Ctx) error {
 	return util.SendOK(c, part)
 }
 
-func (ctrl *Controller) PartialCommit(c *fiber.Ctx) error {
+func (ctrl *Controller) PartialCommitHttp(c *fiber.Ctx) error {
 	sessionId := c.Params("sessionId")
 
 	partCommit := &schema.ParticipantCommit{}
@@ -115,7 +121,7 @@ func (ctrl *Controller) PartialCommit(c *fiber.Ctx) error {
 	return util.SendOK(c, part)
 }
 
-func (ctrl *Controller) CommitSession(c *fiber.Ctx) error {
+func (ctrl *Controller) CommitSessionHttp(c *fiber.Ctx) error {
 	sessionId := c.Params("sessionId")
 
 	session, err := ctrl.srv.CommitSession(sessionId)
@@ -126,7 +132,7 @@ func (ctrl *Controller) CommitSession(c *fiber.Ctx) error {
 	return util.SendOK(c, session)
 }
 
-func (ctrl *Controller) AbortSession(c *fiber.Ctx) error {
+func (ctrl *Controller) AbortSessionHttp(c *fiber.Ctx) error {
 	sessionId := c.Params("sessionId")
 
 	session, err := ctrl.srv.AbortSession(sessionId)

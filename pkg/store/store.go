@@ -14,6 +14,7 @@ type (
 		PutById(id string, session *schema.Session) (*schema.Session, error)
 		FindById(id string) (*schema.Session, error)
 		Find(search *schema.SessionSearch) ([]*schema.Session, error)
+		FindAllUnfinished() ([]*schema.Session, error)
 		UpdateById(id string, update *schema.SessionUpdate) (*schema.Session, error)
 		DeleteById(id string) (*schema.Session, error)
 	}
