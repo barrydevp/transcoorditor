@@ -15,7 +15,7 @@ type entryPQ []ScheduleEntry
 func (pq entryPQ) Len() int { return len(pq) }
 
 func (pq entryPQ) Less(i, j int) bool {
-	// We want Pop to give us the highest, not lowest, priority so we use greater than here.
+	// We want Pop to give us the nearlest, not farest, priority so we use greater than here.
 	return pq[i].ExpiredAt().Before(*pq[j].ExpiredAt())
 }
 
