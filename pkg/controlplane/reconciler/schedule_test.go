@@ -19,6 +19,20 @@ func (e *entry) ExpiredAt() *time.Time {
 }
 
 func TestScheduleReconciler(t *testing.T) {
+	returns := []reconciler.ScheduleEntry{
+		&entry{
+			e:  time.Now().Add(0 * time.Second),
+			id: "abd",
+		},
+		&entry{
+			e:  time.Now().Add(0 * time.Second),
+			id: "abd-1",
+		},
+		&entry{
+			e:  time.Now().Add(1 * time.Second),
+			id: "abdc",
+		},
+	}
 	recl := reconciler.NewScheduleReconciler(
 		func() []reconciler.ScheduleEntry {
 			return nil
@@ -27,8 +41,10 @@ func TestScheduleReconciler(t *testing.T) {
 			for _, en := range entries {
 				fmt.Println(en.(*entry).id)
 			}
+			rets := returns
+			returns = []reconciler.ScheduleEntry{}
 
-			return nil
+			return rets
 		})
 	ctrlplane := controlplane.New()
 

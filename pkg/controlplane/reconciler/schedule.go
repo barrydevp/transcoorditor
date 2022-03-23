@@ -132,16 +132,21 @@ func (r *ScheduleReconciler) Reconcile(stopCh <-chan struct{}) {
 
 		// handle/check phase
 		r.mutex.Lock()
-		r.waiting = false
 		expireds, next := r.getExpiredEntriesAndNext(now)
-		r.mutex.Unlock()
-
 		logger.Info(len(expireds), " expired entries")
-		// handle expired entries
-		skipWait := r.handleExpiredEntries(expireds)
-		if skipWait {
+
+		if len(expireds) > 0 {
+			r.mutex.Unlock()
+			// handle expired entries
+			_ = r.handleExpiredEntries(expireds) // skipWait
+
+			// when handleExpiredEntries running maybe new job has been added
+			// So we must recheck the queue
 			continue
 		}
+
+		r.waiting = true
+		r.mutex.Unlock()
 
 		// waiting phase
 		var timer *time.Timer
@@ -155,16 +160,12 @@ func (r *ScheduleReconciler) Reconcile(stopCh <-chan struct{}) {
 			logger.Info("sleep until new entry was added")
 		}
 
-		// set reconciler is in waiting mode
-		r.mutex.Lock()
-		r.waiting = true
-		r.mutex.Unlock()
-
 		select {
 		case <-timer.C:
 			// next expired
 		case <-*r.interruptCh:
-			logger.Info("received new entry")
+			// usually a new entry has added
+			logger.Info("received interrupt")
 		case <-stopCh:
 			// received stop sigal
 			// @TODO cleanup code
