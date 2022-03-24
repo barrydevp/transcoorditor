@@ -2,17 +2,33 @@ package cmd
 
 import (
 	"path/filepath"
+	"strings"
 
 	"github.com/barrydevp/transcoorditor/pkg/app"
 	"github.com/barrydevp/transcoorditor/pkg/app/controller"
 	"github.com/barrydevp/transcoorditor/pkg/common"
 	"github.com/barrydevp/transcoorditor/pkg/controlplane"
 	"github.com/barrydevp/transcoorditor/pkg/service"
+	"github.com/barrydevp/transcoorditor/pkg/store"
+	"github.com/barrydevp/transcoorditor/pkg/store/boltdb"
 	"github.com/barrydevp/transcoorditor/pkg/store/exclusive"
+	"github.com/barrydevp/transcoorditor/pkg/store/memory"
 	"github.com/barrydevp/transcoorditor/pkg/store/mongodb"
+	"github.com/spf13/viper"
 )
 
 var envFile = ".env"
+
+func initStore() (store.Interface, error) {
+	switch strings.ToLower(viper.GetString("BACKEND_STORE")) {
+	case "mongodb":
+		return mongodb.NewStore()
+	case "memory":
+		return memory.NewStore()
+	default:
+		return boltdb.NewStore()
+	}
+}
 
 func RunApp() {
 	// Loading env into viper config
@@ -23,8 +39,7 @@ func RunApp() {
 	apiSrv := app.NewServer()
 
 	// init storage
-	// s, err := store.NewMemoryStore()
-	s, err := mongodb.NewStore()
+	s, err := initStore()
 	if err != nil {
 		panic(err)
 	}

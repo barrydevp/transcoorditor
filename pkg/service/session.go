@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	ErrSessionNotFound = exception.ApiNotFoundf("session was not found in storage")
+	ErrSessionNotFound = exception.AppNotFoundf("session was not found in storage")
 )
 
 func (srv *Service) findSessionById(id string) (*schema.Session, error) {
@@ -114,7 +114,7 @@ func (srv *Service) JoinSession(sessionId string, part *schema.Participant) (*sc
 	}
 
 	if err := session.CheckSessionActive(); err != nil {
-		return nil, exception.ApiPreconditionFailed(err)
+		return nil, exception.AppPreconditionFailed(err)
 	}
 
 	if part.RequestId != "" {
@@ -161,7 +161,7 @@ func (srv *Service) PartialCommitSession(sessionId string, partCommit *schema.Pa
 		return nil, err
 	}
 	if err := session.CheckSessionActive(); err != nil {
-		return nil, exception.ApiPreconditionFailed(err)
+		return nil, exception.AppPreconditionFailed(err)
 	}
 
 	part, err := srv.findParticipantById(sessionId, *partCommit.Id)
@@ -170,11 +170,11 @@ func (srv *Service) PartialCommitSession(sessionId string, partCommit *schema.Pa
 	}
 
 	if part.SessionId != session.Id {
-		return nil, exception.ApiPreconditionFailedf("commit participant not belong to this session.")
+		return nil, exception.AppPreconditionFailedf("commit participant not belong to this session.")
 	}
 
 	if part.State != schema.ParticipantActive {
-		return nil, exception.ApiPreconditionFailedf("this participant has already committed, current state: %v", part.State)
+		return nil, exception.AppPreconditionFailedf("this participant has already committed, current state: %v", part.State)
 	}
 
 	part.State = schema.ParticipantCommitted
@@ -207,7 +207,7 @@ func (srv *Service) commitSession(session *schema.Session) (*schema.Session, err
 	var err error = nil
 
 	if err = session.AbleToCommitOrRollback(); err != nil {
-		return nil, exception.ApiPreconditionFailed(err)
+		return nil, exception.AppPreconditionFailed(err)
 	}
 
 	session.State = schema.SessionCommitting
@@ -219,7 +219,7 @@ func (srv *Service) commitSession(session *schema.Session) (*schema.Session, err
 	if len(errs) > 0 {
 		session.State = schema.SessionCommitFailed
 		session.Errors = errs
-		apiErr := exception.ApiUnprocessableEntityf("failed to handle CompleteAction on participants")
+		apiErr := exception.AppUnprocessableEntityf("failed to handle CompleteAction on participants")
 		// inject detail
 		apiErr.Detail = session
 		err = apiErr
@@ -247,7 +247,7 @@ func (srv *Service) abortSession(session *schema.Session) (*schema.Session, erro
 	var err error = nil
 
 	if err = session.AbleToCommitOrRollback(); err != nil {
-		return nil, exception.ApiPreconditionFailed(err)
+		return nil, exception.AppPreconditionFailed(err)
 	}
 
 	session.State = schema.SessionAborting
@@ -259,7 +259,7 @@ func (srv *Service) abortSession(session *schema.Session) (*schema.Session, erro
 	if len(errs) > 0 {
 		session.State = schema.SessionAbortFailed
 		session.Errors = errs
-		apiErr := exception.ApiUnprocessableEntityf("failed to handle CompensateAction on participants")
+		apiErr := exception.AppUnprocessableEntityf("failed to handle CompensateAction on participants")
 		// inject detail
 		apiErr.Detail = session
 		err = apiErr
@@ -306,7 +306,7 @@ func (srv *Service) TerminateSession(id string) (*schema.Session, error) {
 		if len(errs) > 0 {
 			session.State = schema.SessionAbortFailed
 			session.Errors = errs
-			apiErr := exception.ApiUnprocessableEntityf("failed to handle CompensateAction on participants")
+			apiErr := exception.AppUnprocessableEntityf("failed to handle CompensateAction on participants")
 			// inject detail
 			apiErr.Detail = session
 			err = apiErr

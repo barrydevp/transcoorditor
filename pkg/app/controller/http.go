@@ -86,7 +86,7 @@ func (ctrl *Controller) JoinSessionHttp(c *fiber.Ctx) error {
 		return util.SendError(c, "unable to parse join session request payload", err)
 	}
 	if err := common.GetValidate().Struct(partJoinBody); err != nil {
-		return util.SendError(c, "invalid join session request payload", exception.ApiBadRequest(err))
+		return util.SendError(c, "invalid join session request payload", exception.AppBadRequest(err))
 	}
 
 	part := schema.NewParticipant()

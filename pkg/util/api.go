@@ -51,13 +51,13 @@ func SendOK(c *fiber.Ctx, data interface{}) error {
 }
 
 func SendError(c *fiber.Ctx, msg string, err error) error {
-	var apiErr *exception.ApiError
+	var apiErr *exception.AppError
 
 	switch v := err.(type) {
-	case *exception.ApiError:
+	case *exception.AppError:
 		apiErr = v
 	default:
-		apiErr = exception.ApiInternalError(err)
+		apiErr = exception.AppInternalError(err)
 	}
 
 	if msg != "" {

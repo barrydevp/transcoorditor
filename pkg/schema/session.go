@@ -88,6 +88,26 @@ func (s *Session) IsTimeout() bool {
 	return time.Now().After(s.TimedoutAt())
 }
 
+func (s *Session) IsFinished() bool {
+	switch s.State {
+	case SessionCommitted, SessionAborted, SessionTerminated:
+		return true
+	default:
+		return false
+	}
+}
+
+func UnfinishedSessionStates() []string {
+	return []string{
+		SessionStarted,
+		SessionActive,
+		SessionCommitting,
+		SessionCommitFailed,
+		SessionAborting,
+		SessionAbortFailed,
+	}
+}
+
 func (s *Session) IsTerminated() bool {
 	return s.State == SessionCommitted || s.State == SessionAborted || s.State == SessionTerminated
 }
@@ -159,6 +179,14 @@ func (s *Session) AbleToCommitOrRollback() error {
 	}
 
 	return nil
+}
+
+func (s *Session) GetParticipantAt(id int64) *Participant {
+	if len(s.Participants) < int(id) || s.Participants[id-1] == nil {
+		return nil
+	}
+
+	return s.Participants[id-1]
 }
 
 type SessionSearch struct {

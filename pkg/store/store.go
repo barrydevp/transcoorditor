@@ -1,6 +1,13 @@
 package store
 
-import "github.com/barrydevp/transcoorditor/pkg/schema"
+import (
+	"github.com/barrydevp/transcoorditor/pkg/exception"
+	"github.com/barrydevp/transcoorditor/pkg/schema"
+)
+
+var (
+	ErrSessionNotFound = exception.AppNotFoundf("session not found")
+)
 
 type (
 	Interface interface {

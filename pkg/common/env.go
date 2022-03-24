@@ -13,6 +13,7 @@ func loadDefaults() {
 	// mongodb
 	viper.SetDefault("MONGODB_URI", "mongodb://localhost:27017")
 	viper.SetDefault("MONGODB_DB", "transcoorditor")
+	viper.SetDefault("BOLTDB_PATH", "bolt.db")
 
 }
 

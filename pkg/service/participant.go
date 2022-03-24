@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	ErrParticipantNotFound = exception.ApiNotFoundf("participant not found")
+	ErrParticipantNotFound = exception.AppNotFoundf("participant not found")
 )
 
 func (srv *Service) findParticipantById(sessionId string, id int64) (*schema.Participant, error) {
