@@ -192,14 +192,14 @@ func (s *participantRepo) FindBySessionId(sessionId string) ([]*schema.Participa
 	return results, nil
 }
 
-func (s *participantRepo) FindDupInSession(sessionId string, part *schema.Participant) (*schema.Participant, error) {
+func (s *participantRepo) FindDupInSession(sessionId string, reqPart *schema.Participant) (*schema.Participant, error) {
 	allPart, err := s.FindBySessionId(sessionId)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, part := range allPart {
-		if part.RequestId == part.RequestId && part.ClientId == part.ClientId {
+		if part.RequestId == reqPart.RequestId && part.ClientId == reqPart.ClientId {
 			return part, nil
 		}
 	}
