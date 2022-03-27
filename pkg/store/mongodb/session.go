@@ -213,6 +213,10 @@ func (s *sessionRepo) UpdateById(id string, schemaUpdate *schema.SessionUpdate) 
 		update = append(update, bson.E{"retries", schemaUpdate.Retries})
 	}
 
+	if schemaUpdate.TerminateReason != nil {
+		update = append(update, bson.E{"terminateReason", schemaUpdate.TerminateReason})
+	}
+
 	// no changes
 	if len(update) == 0 {
 		return s.FindById(id)

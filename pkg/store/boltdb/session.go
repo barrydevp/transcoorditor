@@ -211,6 +211,11 @@ func (s *sessionRepo) UpdateById(id string, schemaUpdate *schema.SessionUpdate) 
 			doc.Retries = *schemaUpdate.Retries
 		}
 
+		if schemaUpdate.TerminateReason != nil {
+			needUpdate = true
+			doc.TerminateReason = *schemaUpdate.TerminateReason
+		}
+
 		// no changes
 		if !needUpdate {
 			return nil

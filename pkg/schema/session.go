@@ -54,19 +54,20 @@ type Session struct {
 	CreatedAt       *time.Time   `json:"createdAt,omitempty" bson:"createdAt,omitempty"`
 	Errors          []string     `json:"errors,omitempty" bson:"errors,omitempty"`
 	Retries         int          `json:"retries" bson:"retries"`
-	TerminateReason string       `json:"terminateReason" bson:"terminateReason"`
+	TerminateReason string       `json:"terminateReason,omitempty" bson:"terminateReason,omitempty"`
 
 	// for edges field (relations associate field)
 	Participants []*Participant `json:"participants,omitempty" bson:"-"`
 }
 
 type SessionUpdate struct {
-	State     *SessionState
-	Errors    *[]string
-	Timeout   *int `json:"timeout"`
-	UpdatedAt *time.Time
-	StartedAt *time.Time
-	Retries   *int
+	State           *SessionState
+	Errors          *[]string
+	Timeout         *int `json:"timeout"`
+	UpdatedAt       *time.Time
+	StartedAt       *time.Time
+	Retries         *int
+	TerminateReason *string
 }
 
 func NewSession(opts *SessionOptions) *Session {
@@ -109,18 +110,18 @@ func (s *Session) IsFinished() bool {
 }
 
 func (s *Session) IsMaximumRetry() bool {
-	return s.Retries > SessionMaximumRetry
+	return s.Retries >= SessionMaximumRetry
 }
 
 func UnfinishedSessionStates() []string {
 	return []string{
 		string(SessionStarted),
 		string(SessionActive),
-		string(SessionCommitting),
+		// string(SessionCommitting),
 		string(SessionCommitFailed),
-		string(SessionAborting),
+		// string(SessionAborting),
 		string(SessionAbortFailed),
-		string(SessionTerminating),
+		// string(SessionTerminating),
 		string(SessionTerminateFailed),
 	}
 }

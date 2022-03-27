@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"time"
 
 	"github.com/barrydevp/transcoorditor/pkg/exception"
@@ -211,10 +212,12 @@ var (
 	Commit    EndSessionAct = "commit"
 	Abort     EndSessionAct = "abort"
 	Terminate EndSessionAct = "terminate"
+	Noop      EndSessionAct = "noop"
 )
 
 func (srv *Service) endSession(session *schema.Session, act EndSessionAct) (*schema.Session, error) {
 	var err error = nil
+	update := &schema.SessionUpdate{}
 
 	if !session.IsMaximumRetry() {
 		startState := schema.SessionTerminating
@@ -225,24 +228,21 @@ func (srv *Service) endSession(session *schema.Session, act EndSessionAct) (*sch
 		// get coresponse state by act
 		switch act {
 		case Commit:
-			if err := session.AbleToCommitOrRollback(true); err != nil {
-				return nil, exception.AppPreconditionFailed(err)
-			}
 			startState = schema.SessionCommitting
 			endOKState = schema.SessionCommitted
 			endERRState = schema.SessionCommitFailed
 			compensate = false
 		case Abort:
-			if err := session.AbleToCommitOrRollback(false); err != nil {
-				return nil, exception.AppPreconditionFailed(err)
-			}
 			startState = schema.SessionAborting
 			endOKState = schema.SessionAborted
 			endERRState = schema.SessionAbortFailed
 			compensate = true
 		case Terminate:
 			session.TerminateReason = "expired session"
+			update.TerminateReason = &session.TerminateReason
 			// default act
+		case Noop:
+			return nil, nil
 		}
 
 		// start end session, do state transition
@@ -267,12 +267,17 @@ func (srv *Service) endSession(session *schema.Session, act EndSessionAct) (*sch
 	} else {
 		session.TerminateReason = session.GetTerminateReason()
 		session.State = schema.SessionTerminated
-		session.Errors = append(session.Errors)
+		session.Errors = append(session.Errors, "maximum retries")
 		err = ErrSessionMaximumRetry
+		update.TerminateReason = &session.TerminateReason
 	}
 
+	update.State = &session.State
+	update.Retries = &session.Retries
+	update.Errors = &session.Errors
+
 	// complete end session, do state transition, save result
-	if _, err := srv.s.Session().UpdateById(session.Id, &schema.SessionUpdate{State: &session.State, Retries: &session.Retries, Errors: &session.Errors}); err != nil {
+	if _, err := srv.s.Session().UpdateById(session.Id, update); err != nil {
 		return nil, err
 	}
 
@@ -285,6 +290,15 @@ func (srv *Service) CommitSession(id string) (*schema.Session, error) {
 		return nil, err
 	}
 
+	if err := session.AbleToCommitOrRollback(true); err != nil {
+		if errors.Is(err, schema.ErrSessionWasCommitted) {
+			// @fixme: already committed, should we throw error?
+			return session, nil
+		}
+
+		return nil, exception.AppPreconditionFailed(err)
+	}
+
 	// return srv.commitSession(session)
 	return srv.endSession(session, Commit)
 }
@@ -293,6 +307,14 @@ func (srv *Service) AbortSession(id string) (*schema.Session, error) {
 	session, err := srv.GetSessionById(id, true)
 	if err != nil {
 		return nil, err
+	}
+
+	if err := session.AbleToCommitOrRollback(false); err != nil {
+		if errors.Is(err, schema.ErrSessionWasAborted) {
+			// @fixme: already aborted, should we throw error?
+			return session, nil
+		}
+		return nil, exception.AppPreconditionFailed(err)
 	}
 
 	// return srv.abortSession(session)
@@ -315,6 +337,29 @@ func (srv *Service) TerminateSession(id string) (*schema.Session, error) {
 	}
 
 	return srv.endSession(session, Terminate)
+}
+
+func getRecoveryAct(session *schema.Session) EndSessionAct {
+	switch session.State {
+	case schema.SessionTerminating:
+		return Terminate
+	case schema.SessionCommitting:
+		return Commit
+	case schema.SessionAborting:
+		return Abort
+	default:
+		return Noop
+	}
+}
+
+func (srv *Service) RecoverySession(id string) (*schema.Session, error) {
+	srv.l.Info("Recovery session: ", id)
+	session, err := srv.GetSessionById(id, true)
+	if err != nil {
+		return nil, err
+	}
+
+	return srv.endSession(session, getRecoveryAct(session))
 }
 
 func (srv *Service) GetAllUnFinishedSession() ([]*schema.Session, error) {
