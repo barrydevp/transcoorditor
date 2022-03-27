@@ -2,24 +2,27 @@ package boltdb
 
 import (
 	// "context"
-	"encoding/json"
+	"fmt"
 
 	"github.com/barrydevp/transcoorditor/pkg/schema"
 	"github.com/barrydevp/transcoorditor/pkg/store"
-	"go.etcd.io/bbolt"
 )
 
 type participantRepo struct {
 	*baseRepo
-	col *collection
+	name string
 }
 
-func NewParticipant(opts *baseRepo) *participantRepo {
-	col := newCollection(opts.db, "session")
+func NewParticipant(b *baseRepo) store.Participant {
+	name := "session"
+	err := b.initCollection(name)
+	if err != nil {
+		panic(fmt.Sprintf("cannot create bucket %s: %v", name, err))
+	}
 
 	return &participantRepo{
-		baseRepo: opts,
-		col:      col,
+		baseRepo: b,
+		name:     name,
 	}
 }
 
@@ -33,45 +36,46 @@ func normalizeParticipant(p *schema.Participant) {
 	// }
 }
 
+func (s *participantRepo) getSession(col *collection, id string) (*schema.Session, error) {
+	doc := &schema.Session{}
+	_doc, err := col.Get(id, doc)
+	if err != nil {
+		doc = nil
+		return nil, err
+	}
+	if _doc == nil {
+		return nil, store.ErrSessionNotFound
+	}
+
+	return doc, nil
+}
+
 func (s *participantRepo) Save(part *schema.Participant) error {
-	return s.db.Batch(func(tx *bbolt.Tx) error {
-		b := tx.Bucket([]byte("session"))
+	return s.exec(func(tx *txn) error {
+		col := tx.collection(s.name)
 
-		buf := b.Get([]byte(part.SessionId))
-		if buf == nil {
-			return store.ErrSessionNotFound
-		}
-
-		session := &schema.Session{}
-		err := json.Unmarshal(buf, session)
+		doc, err := s.getSession(col, part.SessionId)
 		if err != nil {
 			return err
 		}
 
-		session.Participants = append(session.Participants, part)
+		if doc == nil {
 
-		buf, err = json.Marshal(session)
-		if err != nil {
-			return err
 		}
 
-		return b.Put([]byte(part.SessionId), buf)
+		doc.Participants = append(doc.Participants, part)
+
+		return col.Put(doc.Id, doc)
 	})
 }
 
 func (s *participantRepo) PutBySessionAndId(sessionId string, id int64, schemaUpdate *schema.Participant) (*schema.Participant, error) {
 	var doc *schema.Participant
 
-	err := s.db.Batch(func(tx *bbolt.Tx) error {
-		b := tx.Bucket([]byte("session"))
+	err := s.exec(func(tx *txn) error {
+		col := tx.collection(s.name)
 
-		buf := b.Get([]byte(sessionId))
-		if buf == nil {
-			return store.ErrSessionNotFound
-		}
-
-		session := &schema.Session{}
-		err := json.Unmarshal(buf, session)
+		session, err := s.getSession(col, sessionId)
 		if err != nil {
 			return err
 		}
@@ -122,12 +126,7 @@ func (s *participantRepo) PutBySessionAndId(sessionId string, id int64, schemaUp
 			doc.UpdatedAt = schemaUpdate.UpdatedAt
 		}
 
-		buf, err = json.Marshal(session)
-		if err != nil {
-			return err
-		}
-
-		return b.Put([]byte(sessionId), buf)
+		return col.Put(sessionId, session)
 	})
 	if err != nil {
 		return nil, err
@@ -139,16 +138,10 @@ func (s *participantRepo) PutBySessionAndId(sessionId string, id int64, schemaUp
 func (s *participantRepo) FindBySessionAndId(sessionId string, id int64) (*schema.Participant, error) {
 	var doc *schema.Participant
 
-	err := s.db.View(func(tx *bbolt.Tx) error {
-		b := tx.Bucket([]byte("session"))
+	err := s.read(func(tx *txn) error {
+		col := tx.collection(s.name)
 
-		buf := b.Get([]byte(sessionId))
-		if buf == nil {
-			return store.ErrSessionNotFound
-		}
-
-		session := &schema.Session{}
-		err := json.Unmarshal(buf, session)
+		session, err := s.getSession(col, sessionId)
 		if err != nil {
 			return err
 		}
@@ -167,16 +160,10 @@ func (s *participantRepo) FindBySessionAndId(sessionId string, id int64) (*schem
 func (s *participantRepo) FindBySessionId(sessionId string) ([]*schema.Participant, error) {
 	var results []*schema.Participant
 
-	err := s.db.View(func(tx *bbolt.Tx) error {
-		b := tx.Bucket([]byte("session"))
+	err := s.read(func(tx *txn) error {
+		col := tx.collection(s.name)
 
-		buf := b.Get([]byte(sessionId))
-		if buf == nil {
-			return store.ErrSessionNotFound
-		}
-
-		session := &schema.Session{}
-		err := json.Unmarshal(buf, session)
+		session, err := s.getSession(col, sessionId)
 		if err != nil {
 			return err
 		}
@@ -210,16 +197,10 @@ func (s *participantRepo) FindDupInSession(sessionId string, reqPart *schema.Par
 func (s *participantRepo) UpdateBySessionAndId(sessionId string, id int64, schemaUpdate *schema.ParticipantUpdate) (*schema.Participant, error) {
 	var doc *schema.Participant
 
-	err := s.db.Batch(func(tx *bbolt.Tx) error {
-		b := tx.Bucket([]byte("session"))
+	err := s.exec(func(tx *txn) error {
+		col := tx.collection(s.name)
 
-		buf := b.Get([]byte(sessionId))
-		if buf == nil {
-			return store.ErrSessionNotFound
-		}
-
-		session := &schema.Session{}
-		err := json.Unmarshal(buf, session)
+		session, err := s.getSession(col, sessionId)
 		if err != nil {
 			return err
 		}
@@ -260,12 +241,7 @@ func (s *participantRepo) UpdateBySessionAndId(sessionId string, id int64, schem
 			doc.UpdatedAt = schemaUpdate.UpdatedAt
 		}
 
-		buf, err = json.Marshal(session)
-		if err != nil {
-			return err
-		}
-
-		return b.Put([]byte(sessionId), buf)
+		return col.Put(sessionId, session)
 	})
 	if err != nil {
 		return nil, err
@@ -286,30 +262,19 @@ func (s *participantRepo) CountBySessionId(sessionId string) (int64, error) {
 func (s *participantRepo) DeleteBySessionId(sessionId string) (int64, error) {
 	deletedCount := 0
 
-	err := s.db.Batch(func(tx *bbolt.Tx) error {
-		b := tx.Bucket([]byte("session"))
+	err := s.exec(func(tx *txn) error {
+		col := tx.collection(s.name)
 
-		buf := b.Get([]byte(sessionId))
-		if buf == nil {
-			// already delete
-			return nil
-		}
-
-		session := &schema.Session{}
-		err := json.Unmarshal(buf, session)
+		session, err := s.getSession(col, sessionId)
 		if err != nil {
-			return err
+			return nil
+			// return err
 		}
 
 		deletedCount = len(session.Participants)
 		session.Participants = nil
 
-		buf, err = json.Marshal(session)
-		if err != nil {
-			return err
-		}
-
-		return b.Put([]byte(sessionId), buf)
+		return col.Put(sessionId, session)
 	})
 
 	if err != nil {

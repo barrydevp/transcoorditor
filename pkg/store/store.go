@@ -37,3 +37,16 @@ type (
 		DeleteBySessionId(sessionId string) (int64, error)
 	}
 )
+
+type Backend struct {
+	SessionImpl     Session
+	ParticipantImpl Participant
+}
+
+func (b *Backend) Session() Session {
+	return b.SessionImpl
+}
+
+func (b *Backend) Participant() Participant {
+	return b.ParticipantImpl
+}

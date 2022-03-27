@@ -8,7 +8,9 @@ import (
 )
 
 var (
-	ErrSessionNotFound = exception.AppNotFoundf("session was not found in storage")
+	ErrSessionNotFound      = exception.AppNotFoundf("session was not found in storage")
+	ErrSessionNotExpiredYet = exception.AppUnprocessableEntityf("session not expired yet")
+	ErrSessionMaximumRetry  = exception.AppGonef("session maximum retries")
 )
 
 func (srv *Service) findSessionById(id string) (*schema.Session, error) {
@@ -203,31 +205,72 @@ func (srv *Service) PartialCommitSession(sessionId string, partCommit *schema.Pa
 	return part, nil
 }
 
-func (srv *Service) commitSession(session *schema.Session) (*schema.Session, error) {
+type EndSessionAct string
+
+var (
+	Commit    EndSessionAct = "commit"
+	Abort     EndSessionAct = "abort"
+	Terminate EndSessionAct = "terminate"
+)
+
+func (srv *Service) endSession(session *schema.Session, act EndSessionAct) (*schema.Session, error) {
 	var err error = nil
 
-	if err = session.AbleToCommitOrRollback(); err != nil {
-		return nil, exception.AppPreconditionFailed(err)
-	}
+	if !session.IsMaximumRetry() {
+		startState := schema.SessionTerminating
+		endOKState := schema.SessionTerminated
+		endERRState := schema.SessionTerminateFailed
+		compensate := true
 
-	session.State = schema.SessionCommitting
-	if _, err = srv.s.Session().UpdateById(session.Id, &schema.SessionUpdate{State: &session.State}); err != nil {
-		return nil, err
-	}
+		// get coresponse state by act
+		switch act {
+		case Commit:
+			if err := session.AbleToCommitOrRollback(); err != nil {
+				return nil, exception.AppPreconditionFailed(err)
+			}
+			startState = schema.SessionCommitting
+			endOKState = schema.SessionCommitted
+			endERRState = schema.SessionCommitFailed
+			compensate = false
+		case Abort:
+			if err := session.AbleToCommitOrRollback(); err != nil {
+				return nil, exception.AppPreconditionFailed(err)
+			}
+			startState = schema.SessionAborting
+			endOKState = schema.SessionAborted
+			endERRState = schema.SessionAbortFailed
+			compensate = true
+		case Terminate:
+			// default act
+		}
 
-	errs := srv.handlePartComplete(session)
-	if len(errs) > 0 {
-		session.State = schema.SessionCommitFailed
-		session.Errors = errs
-		apiErr := exception.AppUnprocessableEntityf("failed to handle CompleteAction on participants")
-		// inject detail
-		apiErr.Detail = session
-		err = apiErr
+		// start end session, do state transition
+		session.State = startState
+		if _, err = srv.s.Session().UpdateById(session.Id, &schema.SessionUpdate{State: &session.State}); err != nil {
+			return nil, err
+		}
+
+		// handle participant action
+		errs := srv.handleParticipantActions(session, compensate)
+		if len(errs) > 0 {
+			session.State = endERRState
+			session.Errors = errs
+			apiErr := exception.AppUnprocessableEntityf("failed to handle Action on participants")
+			// inject detail
+			apiErr.Detail = session
+			err = apiErr
+			session.Retries++
+		} else {
+			session.State = endOKState
+		}
 	} else {
-		session.State = schema.SessionCommitted
+		session.State = schema.SessionTerminated
+		session.Errors = append(session.Errors)
+		err = ErrSessionMaximumRetry
 	}
 
-	if _, err := srv.s.Session().UpdateById(session.Id, &schema.SessionUpdate{State: &session.State, Errors: &session.Errors}); err != nil {
+	// complete end session, do state transition, save result
+	if _, err := srv.s.Session().UpdateById(session.Id, &schema.SessionUpdate{State: &session.State, Retries: &session.Retries, Errors: &session.Errors}); err != nil {
 		return nil, err
 	}
 
@@ -240,38 +283,8 @@ func (srv *Service) CommitSession(id string) (*schema.Session, error) {
 		return nil, err
 	}
 
-	return srv.commitSession(session)
-}
-
-func (srv *Service) abortSession(session *schema.Session) (*schema.Session, error) {
-	var err error = nil
-
-	if err = session.AbleToCommitOrRollback(); err != nil {
-		return nil, exception.AppPreconditionFailed(err)
-	}
-
-	session.State = schema.SessionAborting
-	if _, err := srv.s.Session().UpdateById(session.Id, &schema.SessionUpdate{State: &session.State}); err != nil {
-		return nil, err
-	}
-
-	errs := srv.handlePartCompensate(session)
-	if len(errs) > 0 {
-		session.State = schema.SessionAbortFailed
-		session.Errors = errs
-		apiErr := exception.AppUnprocessableEntityf("failed to handle CompensateAction on participants")
-		// inject detail
-		apiErr.Detail = session
-		err = apiErr
-	} else {
-		session.State = schema.SessionAborted
-	}
-
-	if _, err := srv.s.Session().UpdateById(session.Id, &schema.SessionUpdate{State: &session.State, Errors: &session.Errors}); err != nil {
-		return nil, exception.Errorf("failed to update session: %w", err)
-	}
-
-	return session, err
+	// return srv.commitSession(session)
+	return srv.endSession(session, Commit)
 }
 
 func (srv *Service) AbortSession(id string) (*schema.Session, error) {
@@ -280,57 +293,26 @@ func (srv *Service) AbortSession(id string) (*schema.Session, error) {
 		return nil, err
 	}
 
-	return srv.abortSession(session)
+	// return srv.abortSession(session)
+	return srv.endSession(session, Abort)
 }
 
 func (srv *Service) TerminateSession(id string) (*schema.Session, error) {
-	srv.l.Info("Terminate sesiond: ", id)
+	srv.l.Info("Terminate session: ", id)
 	session, err := srv.GetSessionById(id, true)
 	if err != nil {
 		return nil, err
 	}
 
-	if session.IsTerminated() {
+	if session.IsFinished() {
 		return nil, nil
 	}
 
-	update := &schema.SessionUpdate{}
-
-	if session.Retries <= 5 {
-		session.State = schema.SessionAborting
-		if _, err := srv.s.Session().UpdateById(session.Id, &schema.SessionUpdate{State: &session.State}); err != nil {
-			return nil, err
-		}
-
-		errs := srv.handlePartCompensate(session)
-		if len(errs) > 0 {
-			session.State = schema.SessionAbortFailed
-			session.Errors = errs
-			apiErr := exception.AppUnprocessableEntityf("failed to handle CompensateAction on participants")
-			// inject detail
-			apiErr.Detail = session
-			err = apiErr
-			session.Retries++
-		} else {
-			session.State = schema.SessionTerminated
-		}
-
-		update.Errors = &session.Errors
-		update.Retries = &session.Retries
-	} else {
-		session.State = schema.SessionTerminated
+	if !session.IsTimeout() {
+		return session, ErrSessionNotExpiredYet
 	}
 
-	update.State = &session.State
-
-	if _, err := srv.s.Session().UpdateById(
-		session.Id,
-		update,
-	); err != nil {
-		return nil, exception.Errorf("failed to update session: %w", err)
-	}
-
-	return session, err
+	return srv.endSession(session, Terminate)
 }
 
 func (srv *Service) GetAllUnFinishedSession() ([]*schema.Session, error) {

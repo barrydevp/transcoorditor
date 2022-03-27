@@ -50,54 +50,35 @@ func (srv *Service) handlePartAction(session *schema.Session, handler PartAction
 	return errs
 }
 
-func (srv *Service) handlePartComplete(session *schema.Session) []string {
+func (srv *Service) handleParticipantActions(session *schema.Session, compensate bool) []string {
+	partOKState := schema.ParticipantCompleted
+	partERRState := schema.ParticipantCompleteFailed
+
+	if compensate {
+		partOKState = schema.ParticipantCompensated
+		partERRState = schema.ParticipantCompleted
+	}
+
 	return srv.handlePartAction(session, func(part *schema.Participant) (*schema.ParticipantUpdate, error) {
 		var err error
 
-		completeAc := part.CompleteAction
-		partState := schema.ParticipantCompleted
+		action := part.GetAction(compensate)
+		partState := partOKState
 
-		if completeAc != nil {
-
-			// if completeAc.IsFinished() {
-			// 	return nil, nil
-			// }
-
-			err = completeAc.InvokePartAction()
-			if err != nil {
-				partState = schema.ParticipantCompleteFailed
+		if action != nil {
+			if action.IsFinished() {
+				return nil, nil
 			}
-		}
 
-		return &schema.ParticipantUpdate{
-			State:          &partState,
-			CompleteAction: completeAc,
-		}, err
-	})
-}
-
-func (srv *Service) handlePartCompensate(session *schema.Session) []string {
-	return srv.handlePartAction(session, func(part *schema.Participant) (*schema.ParticipantUpdate, error) {
-		var err error
-
-		compensateAc := part.CompensateAction
-		partState := schema.ParticipantCompensated
-
-		if compensateAc != nil {
-
-			// if compensateAction.IsFinished() {
-			// 	continue
-			// }
-
-			err = compensateAc.InvokePartAction()
+			err = action.InvokePartAction()
 			if err != nil {
-				partState = schema.ParticipantCompensateFailed
+				partState = partERRState
 			}
 		}
 
 		return &schema.ParticipantUpdate{
 			State:            &partState,
-			CompensateAction: compensateAc,
+			CompensateAction: action,
 		}, err
 	})
 }

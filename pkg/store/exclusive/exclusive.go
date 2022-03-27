@@ -41,30 +41,24 @@ func newBaseRepo() *baseRepo {
 }
 
 // decorator pattern?
-type exclusiveStore struct {
+type exclusiveBackend struct {
+	*store.Backend
 	s store.Interface
-
-	session     *sessionRepo
-	participant *participantRepo
 }
 
-func NewStore(store store.Interface) (store.Interface, error) {
-	return &exclusiveStore{
-		s:           store,
-		session:     NewSession(store.Session()),
-		participant: NewParticipant(store.Participant()),
+func NewStore(s store.Interface) (store.Interface, error) {
+	backend := &store.Backend{
+		SessionImpl:     NewSession(s.Session()),
+		ParticipantImpl: NewParticipant(s.Participant()),
+	}
+
+	return &exclusiveBackend{
+		Backend: backend,
+		s:       s,
 	}, nil
 }
 
 // @overide
-func (s *exclusiveStore) Close() {
+func (s *exclusiveBackend) Close() {
 	s.s.Close()
-}
-
-func (s *exclusiveStore) Session() store.Session {
-	return s.session
-}
-
-func (s *exclusiveStore) Participant() store.Participant {
-	return s.participant
 }

@@ -10,7 +10,7 @@ type participantRepo struct {
 	s store.Participant
 }
 
-func NewParticipant(participant store.Participant) *participantRepo {
+func NewParticipant(participant store.Participant) store.Participant {
 	return &participantRepo{
 		baseRepo: newBaseRepo(),
 		s:        participant,

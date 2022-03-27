@@ -4,27 +4,21 @@ import (
 	"github.com/barrydevp/transcoorditor/pkg/store"
 )
 
-type memoryStore struct {
-	session     *sessionRepo
-	participant *participantRepo
+type memoryBackend struct {
+	*store.Backend
 }
 
 func NewStore() (store.Interface, error) {
+	backend := &store.Backend{
+		SessionImpl:     NewSession(),
+		ParticipantImpl: NewParticipant(),
+	}
 
-	return &memoryStore{
-		session:     NewSession(),
-		participant: NewParticipant(),
+	return &memoryBackend{
+		Backend: backend,
 	}, nil
 }
 
-func (s *memoryStore) Close() {
+func (s *memoryBackend) Close() {
 
-}
-
-func (s *memoryStore) Session() store.Session {
-	return s.session
-}
-
-func (s *memoryStore) Participant() store.Participant {
-	return s.participant
 }

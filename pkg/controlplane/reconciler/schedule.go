@@ -55,6 +55,7 @@ type ScheduleReconciler struct {
 	scheQueue   *entryPQ
 	waiting     bool
 	interruptCh *chan struct{}
+	waitCh      *chan struct{}
 }
 
 func NewScheduleReconciler(initScheQueue InitScheQueueFunc, handleExpired HandleExpiredFunc) *ScheduleReconciler {
@@ -71,8 +72,8 @@ func (r *ScheduleReconciler) handleExpiredEntries(entries []ScheduleEntry) bool 
 	if r.handleExpired != nil {
 		newEntries := r.handleExpired(entries)
 		if len(newEntries) > 0 {
-			r.ScheduleBatch(newEntries)
 			logger.Info("new entries added: ", len(newEntries))
+			r.ScheduleBatch(newEntries)
 
 			// skip waiting, continue the loop
 			return true
@@ -102,9 +103,11 @@ func (r *ScheduleReconciler) getExpiredEntriesAndNext(now time.Time) ([]Schedule
 // this must be called once at a time (mean you must Lock the mutex)
 func (r *ScheduleReconciler) interupt() {
 	// if reconciler is waiting, signal it and set watiting to false
-	if r.interruptCh != nil && r.waiting {
-		*r.interruptCh <- struct{}{}
-		r.waiting = false
+	if r.interruptCh != nil {
+		select {
+		case *r.interruptCh <- struct{}{}:
+		default:
+		}
 	}
 }
 
@@ -122,10 +125,12 @@ func (r *ScheduleReconciler) Reconcile(stopCh <-chan struct{}) {
 	}
 	// r.mutex.Unlock()
 
-	logger.Info("reconciling...")
+	logger.Info("Start scheduling...")
 
-	interCh := make(chan struct{})
+	interCh := make(chan struct{}, 1)
+	waitCh := make(chan struct{})
 	r.interruptCh = &interCh
+	r.waitCh = &waitCh
 
 	for {
 		now := time.Now()
@@ -145,7 +150,6 @@ func (r *ScheduleReconciler) Reconcile(stopCh <-chan struct{}) {
 			continue
 		}
 
-		r.waiting = true
 		r.mutex.Unlock()
 
 		// waiting phase
@@ -153,11 +157,11 @@ func (r *ScheduleReconciler) Reconcile(stopCh <-chan struct{}) {
 
 		if next != nil {
 			timer = time.NewTimer(next.ExpiredAt().Sub(now))
-			logger.Info("now: ", now, "next: ", next.ExpiredAt)
+			logger.Info("now: ", now, " next: ", next.ExpiredAt())
 		} else {
 			// no entry need to schedule yet, sleep until new entry was added
 			timer = time.NewTimer(100000 * time.Hour)
-			logger.Info("sleep until new entry was added")
+			logger.Info("no next entry, sleep until new entry was added")
 		}
 
 		select {
@@ -168,9 +172,28 @@ func (r *ScheduleReconciler) Reconcile(stopCh <-chan struct{}) {
 			logger.Info("received interrupt")
 		case <-stopCh:
 			// received stop sigal
-			// @TODO cleanup code
-			break
+			logger.Info("received stop")
+			r.cleanup()
+			return // do not use break here, since it only break out the "select-case" block not "for-loop"
 		}
+	}
+}
+
+func (r *ScheduleReconciler) cleanup() {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	logger.Infof("cleaning up scheduler, queueLen=%v", len(*r.scheQueue))
+
+	// @fixme: should we create new queue?
+	r.scheQueue = &entryPQ{}
+
+	if r.interruptCh != nil {
+		close(*r.interruptCh)
+	}
+
+	if r.waitCh != nil {
+		close(*r.waitCh)
 	}
 }
 
@@ -193,8 +216,5 @@ func (r *ScheduleReconciler) ScheduleBatch(entries []ScheduleEntry) {
 }
 
 func (r *ScheduleReconciler) WaitStop() <-chan struct{} {
-	c := make(chan struct{})
-	defer close(c)
-
-	return c
+	return *r.waitCh
 }

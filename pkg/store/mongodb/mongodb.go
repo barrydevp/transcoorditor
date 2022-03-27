@@ -21,12 +21,10 @@ type baseRepo struct {
 	Db *mongo.Database
 }
 
-type mongodbStore struct {
+type mongodbBackend struct {
+	*store.Backend
 	c  *mongo.Client
 	db *mongo.Database
-
-	session     *sessionRepo
-	participant *participantRepo
 }
 
 const (
@@ -53,7 +51,6 @@ func pingMongo(client *mongo.Client) error {
 }
 
 func NewStore() (store.Interface, error) {
-
 	client, err := connectMongo()
 	if err != nil {
 		return nil, err
@@ -74,16 +71,19 @@ func NewStore() (store.Interface, error) {
 	baseRepo := &baseRepo{
 		Db: db,
 	}
+	backend := &store.Backend{
+		SessionImpl:     NewSession(baseRepo),
+		ParticipantImpl: NewParticipant(baseRepo),
+	}
 
-	return &mongodbStore{
-		c:           client,
-		db:          db,
-		session:     NewSession(baseRepo),
-		participant: NewParticipant(baseRepo),
+	return &mongodbBackend{
+		Backend: backend,
+		c:       client,
+		db:      db,
 	}, nil
 }
 
-func (s *mongodbStore) Close() {
+func (s *mongodbBackend) Close() {
 	if s.c == nil {
 		return
 	}
@@ -98,12 +98,4 @@ func (s *mongodbStore) Close() {
 	}
 
 	logger.Info("Mongodb is disconnected.")
-}
-
-func (s *mongodbStore) Session() store.Session {
-	return s.session
-}
-
-func (s *mongodbStore) Participant() store.Participant {
-	return s.participant
 }

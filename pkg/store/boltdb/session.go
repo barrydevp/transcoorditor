@@ -2,56 +2,50 @@ package boltdb
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/barrydevp/transcoorditor/pkg/schema"
-	"go.etcd.io/bbolt"
+	"github.com/barrydevp/transcoorditor/pkg/store"
 )
 
 type sessionRepo struct {
 	*baseRepo
-	col *collection
+	name string
 }
 
-func NewSession(opts *baseRepo) *sessionRepo {
-	col := newCollection(opts.db, "session")
+func NewSession(b *baseRepo) store.Session {
+	name := "session"
+	err := b.initCollection(name)
+	if err != nil {
+		panic(fmt.Sprintf("cannot create bucket %s: %v", name, err))
+	}
 
 	return &sessionRepo{
-		baseRepo: opts,
-		col:      col,
+		baseRepo: b,
+		name:     name,
 	}
 }
 
 func (s *sessionRepo) Save(session *schema.Session) error {
-	return s.db.Batch(func(tx *bbolt.Tx) error {
-		b := tx.Bucket([]byte("session"))
+	return s.exec(func(tx *txn) error {
+		col := tx.collection(s.name)
 
 		clone := *session
-		clone.Participants = nil
 
-		buf, err := json.Marshal(&clone)
-		if err != nil {
-			return err
-		}
-
-		return b.Put([]byte(clone.Id), buf)
+		return col.Put(clone.Id, clone)
 	})
 }
 
 func (s *sessionRepo) PutById(id string, schemaUpdate *schema.Session) (*schema.Session, error) {
 	var doc *schema.Session
 
-	err := s.db.Batch(func(tx *bbolt.Tx) error {
-		b := tx.Bucket([]byte("session"))
-
-		buf := b.Get([]byte(id))
-
-		if buf == nil {
-			return nil
-		}
+	err := s.exec(func(tx *txn) error {
+		col := tx.collection(s.name)
 
 		doc = &schema.Session{}
-		err := json.Unmarshal(buf, doc)
-		if err != nil {
+		_doc, err := col.Get(id, doc)
+		if err != nil || _doc == nil {
+			doc = nil
 			return err
 		}
 
@@ -91,12 +85,7 @@ func (s *sessionRepo) PutById(id string, schemaUpdate *schema.Session) (*schema.
 			doc.UpdatedAt = schemaUpdate.UpdatedAt
 		}
 
-		buf, err = json.Marshal(doc)
-		if err != nil {
-			return err
-		}
-
-		return b.Put([]byte(id), buf)
+		return col.Put(id, doc)
 	})
 	if err != nil {
 		return nil, err
@@ -108,17 +97,13 @@ func (s *sessionRepo) PutById(id string, schemaUpdate *schema.Session) (*schema.
 func (s *sessionRepo) FindById(id string) (*schema.Session, error) {
 	var doc *schema.Session
 
-	err := s.db.View(func(tx *bbolt.Tx) error {
-		b := tx.Bucket([]byte("session"))
-
-		buf := b.Get([]byte(id))
-		if buf == nil {
-			return nil
-		}
+	err := s.read(func(tx *txn) error {
+		col := tx.collection(s.name)
 
 		doc = &schema.Session{}
-		err := json.Unmarshal(buf, doc)
-		if err != nil {
+		_doc, err := col.Get(id, doc)
+		if err != nil || _doc == nil {
+			doc = nil
 			return err
 		}
 
@@ -134,11 +119,11 @@ func (s *sessionRepo) FindById(id string) (*schema.Session, error) {
 func (s *sessionRepo) Find(search *schema.SessionSearch) ([]*schema.Session, error) {
 	var results []*schema.Session
 
-	err := s.db.View(func(tx *bbolt.Tx) error {
+	err := s.read(func(tx *txn) error {
 		// Assume bucket exists and has keys
-		b := tx.Bucket([]byte("session"))
+		col := tx.collection(s.name)
 
-		c := b.Cursor()
+		c := col.Cursor()
 		for k, v := c.First(); k != nil; k, v = c.Next() {
 			doc := &schema.Session{}
 			err := json.Unmarshal(v, doc)
@@ -160,11 +145,11 @@ func (s *sessionRepo) Find(search *schema.SessionSearch) ([]*schema.Session, err
 func (s *sessionRepo) FindAllUnfinished() ([]*schema.Session, error) {
 	var results []*schema.Session
 
-	err := s.db.View(func(tx *bbolt.Tx) error {
+	err := s.read(func(tx *txn) error {
 		// Assume bucket exists and has keys
-		b := tx.Bucket([]byte("session"))
+		col := tx.collection(s.name)
 
-		c := b.Cursor()
+		c := col.Cursor()
 		for k, v := c.First(); k != nil; k, v = c.Next() {
 			doc := &schema.Session{}
 			err := json.Unmarshal(v, doc)
@@ -189,18 +174,13 @@ func (s *sessionRepo) FindAllUnfinished() ([]*schema.Session, error) {
 func (s *sessionRepo) UpdateById(id string, schemaUpdate *schema.SessionUpdate) (*schema.Session, error) {
 	var doc *schema.Session
 
-	err := s.db.Batch(func(tx *bbolt.Tx) error {
-		b := tx.Bucket([]byte("session"))
-
-		buf := b.Get([]byte(id))
-
-		if buf == nil {
-			return nil
-		}
+	err := s.exec(func(tx *txn) error {
+		col := tx.collection(s.name)
 
 		doc = &schema.Session{}
-		err := json.Unmarshal(buf, doc)
-		if err != nil {
+		_doc, err := col.Get(id, doc)
+		if err != nil || _doc == nil {
+			doc = nil
 			return err
 		}
 
@@ -240,12 +220,7 @@ func (s *sessionRepo) UpdateById(id string, schemaUpdate *schema.SessionUpdate) 
 			doc.UpdatedAt = schemaUpdate.UpdatedAt
 		}
 
-		buf, err = json.Marshal(doc)
-		if err != nil {
-			return err
-		}
-
-		return b.Put([]byte(id), buf)
+		return col.Put(id, doc)
 	})
 	if err != nil {
 		return nil, err
@@ -257,24 +232,18 @@ func (s *sessionRepo) UpdateById(id string, schemaUpdate *schema.SessionUpdate) 
 func (s *sessionRepo) DeleteById(id string) (*schema.Session, error) {
 	var doc *schema.Session
 
-	err := s.db.Batch(func(tx *bbolt.Tx) error {
-		b := tx.Bucket([]byte("session"))
-
-		buf := b.Get([]byte(id))
-		if buf == nil {
-			return nil
-		}
-
-		err := b.Delete([]byte(id))
-		if err != nil {
-			return err
-		}
+	err := s.exec(func(tx *txn) error {
+		col := tx.collection(s.name)
 
 		doc = &schema.Session{}
-		err = json.Unmarshal(buf, doc)
-		if err != nil {
-			// we ignore this error because we already delete the record
-			return nil
+		_doc, err := col.Get(id, doc)
+		if err != nil || _doc == nil {
+			doc = nil
+			// return err
+		}
+
+		if err := col.Delete(id); err != nil {
+			return err
 		}
 
 		return nil

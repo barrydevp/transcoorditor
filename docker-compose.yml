@@ -47,6 +47,7 @@ services:
       # - MONGODB_URI=mongodb://mongodb:27017,mongo1:27017,mongo2:27017/?replicaSet=rs0
       - MONGODB_URI=mongodb://mongodb:27017
       - BOLTDB_PATH=/bolt/bolt.db
+      # - BACKEND_STORE=mongodb
     depends_on:
       - mongodb
     ports:

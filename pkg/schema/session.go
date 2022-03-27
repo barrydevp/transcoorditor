@@ -11,16 +11,20 @@ import (
 type SessionState string
 
 const (
-	SessionNew          SessionState = "New"
-	SessionStarted                   = "Started"
-	SessionActive                    = "Active"
-	SessionCommitting                = "Committing"
-	SessionCommitted                 = "Commited"
-	SessionCommitFailed              = "CommitFailed"
-	SessionAborting                  = "Aborting"
-	SessionAborted                   = "Aborted"
-	SessionAbortFailed               = "AbortFailed"
-	SessionTerminated                = "Terminated" // timeout session was auto terminated
+	SessionNew             SessionState = "New"
+	SessionStarted         SessionState = "Started"
+	SessionActive          SessionState = "Active"
+	SessionCommitting      SessionState = "Committing"
+	SessionCommitted       SessionState = "Commited"
+	SessionCommitFailed    SessionState = "CommitFailed"
+	SessionAborting        SessionState = "Aborting"
+	SessionAborted         SessionState = "Aborted"
+	SessionAbortFailed     SessionState = "AbortFailed"
+	SessionTerminating     SessionState = "Terminating"
+	SessionTerminated      SessionState = "Terminated" // timeout session was auto terminated
+	SessionTerminateFailed SessionState = "TerminateFailed"
+
+	SessionMaximumRetry = 5
 )
 
 type SessionOptions struct {
@@ -97,19 +101,21 @@ func (s *Session) IsFinished() bool {
 	}
 }
 
-func UnfinishedSessionStates() []string {
-	return []string{
-		SessionStarted,
-		SessionActive,
-		SessionCommitting,
-		SessionCommitFailed,
-		SessionAborting,
-		SessionAbortFailed,
-	}
+func (s *Session) IsMaximumRetry() bool {
+	return s.Retries > SessionMaximumRetry
 }
 
-func (s *Session) IsTerminated() bool {
-	return s.State == SessionCommitted || s.State == SessionAborted || s.State == SessionTerminated
+func UnfinishedSessionStates() []string {
+	return []string{
+		string(SessionStarted),
+		string(SessionActive),
+		string(SessionCommitting),
+		string(SessionCommitFailed),
+		string(SessionAborting),
+		string(SessionAbortFailed),
+		string(SessionTerminating),
+		string(SessionTerminateFailed),
+	}
 }
 
 func (s *Session) CheckSessionActive() error {

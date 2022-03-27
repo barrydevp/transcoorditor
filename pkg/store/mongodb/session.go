@@ -164,14 +164,7 @@ func (s *sessionRepo) FindAllUnfinished() ([]*schema.Session, error) {
 	doc, err := util.WithTimeout(func(ctx context.Context) (interface{}, error) {
 		filter := bson.D{{
 			"state", bson.D{{
-				"$in", []string{
-					schema.SessionStarted,
-					schema.SessionActive,
-					schema.SessionCommitting,
-					schema.SessionCommitFailed,
-					schema.SessionAborting,
-					schema.SessionAbortFailed,
-				},
+				"$in", schema.UnfinishedSessionStates(),
 			}},
 		}}
 

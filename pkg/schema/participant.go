@@ -161,6 +161,14 @@ func NewParticipant() *Participant {
 	}
 }
 
+func (p *Participant) GetAction(compensate bool) *ParticipantAction {
+	if compensate {
+		return p.CompensateAction
+	}
+
+	return p.CompleteAction
+}
+
 type ParticipantJoinBody struct {
 	ClientId  string `json:"clientId" validate:"required"`
 	RequestId string `json:"requestId"`

@@ -98,6 +98,10 @@ func AppGone(err error) *AppError {
 	return NewAppError(err, "gone", fiber.StatusGone, nil)
 }
 
+func AppGonef(format string, a ...interface{}) *AppError {
+	return AppGone(fmt.Errorf(format, a...))
+}
+
 func AppBadRequest(err error) *AppError {
 	return NewAppError(err, "bad request", fiber.StatusBadRequest, nil)
 }

@@ -10,7 +10,7 @@ type sessionRepo struct {
 	s store.Session
 }
 
-func NewSession(s store.Session) *sessionRepo {
+func NewSession(s store.Session) store.Session {
 	return &sessionRepo{
 		baseRepo: newBaseRepo(),
 		s:        s,
