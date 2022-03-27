@@ -225,7 +225,7 @@ func (srv *Service) endSession(session *schema.Session, act EndSessionAct) (*sch
 		// get coresponse state by act
 		switch act {
 		case Commit:
-			if err := session.AbleToCommitOrRollback(); err != nil {
+			if err := session.AbleToCommitOrRollback(true); err != nil {
 				return nil, exception.AppPreconditionFailed(err)
 			}
 			startState = schema.SessionCommitting
@@ -233,7 +233,7 @@ func (srv *Service) endSession(session *schema.Session, act EndSessionAct) (*sch
 			endERRState = schema.SessionCommitFailed
 			compensate = false
 		case Abort:
-			if err := session.AbleToCommitOrRollback(); err != nil {
+			if err := session.AbleToCommitOrRollback(false); err != nil {
 				return nil, exception.AppPreconditionFailed(err)
 			}
 			startState = schema.SessionAborting
@@ -241,6 +241,7 @@ func (srv *Service) endSession(session *schema.Session, act EndSessionAct) (*sch
 			endERRState = schema.SessionAbortFailed
 			compensate = true
 		case Terminate:
+			session.TerminateReason = "expired session"
 			// default act
 		}
 
@@ -264,6 +265,7 @@ func (srv *Service) endSession(session *schema.Session, act EndSessionAct) (*sch
 			session.State = endOKState
 		}
 	} else {
+		session.TerminateReason = session.GetTerminateReason()
 		session.State = schema.SessionTerminated
 		session.Errors = append(session.Errors)
 		err = ErrSessionMaximumRetry

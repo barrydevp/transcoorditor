@@ -47,13 +47,14 @@ type Session struct {
 	// represents storage field. eg: mongodb field, mysql column
 	Id string `json:"id" bson:"id"`
 
-	State     SessionState `json:"state" bson:"state"`
-	Timeout   int          `json:"timeout" bson:"timeout"`
-	UpdatedAt *time.Time   `json:"updatedAt,omitempty" bson:"updatedAt,omitempty"`
-	StartedAt *time.Time   `json:"startedAt,omitempty" bson:"startedAt,omitempty"`
-	CreatedAt *time.Time   `json:"createdAt,omitempty" bson:"createdAt,omitempty"`
-	Errors    []string     `json:"errors,omitempty" bson:"errors,omitempty"`
-	Retries   int          `json:"retries" bons:"retries"`
+	State           SessionState `json:"state" bson:"state"`
+	Timeout         int          `json:"timeout" bson:"timeout"`
+	UpdatedAt       *time.Time   `json:"updatedAt,omitempty" bson:"updatedAt,omitempty"`
+	StartedAt       *time.Time   `json:"startedAt,omitempty" bson:"startedAt,omitempty"`
+	CreatedAt       *time.Time   `json:"createdAt,omitempty" bson:"createdAt,omitempty"`
+	Errors          []string     `json:"errors,omitempty" bson:"errors,omitempty"`
+	Retries         int          `json:"retries" bson:"retries"`
+	TerminateReason string       `json:"terminateReason" bson:"terminateReason"`
 
 	// for edges field (relations associate field)
 	Participants []*Participant `json:"participants,omitempty" bson:"-"`
@@ -92,13 +93,19 @@ func (s *Session) IsTimeout() bool {
 	return time.Now().After(s.TimedoutAt())
 }
 
+// func (s *Session) Is
+
 func (s *Session) IsFinished() bool {
-	switch s.State {
-	case SessionCommitted, SessionAborted, SessionTerminated:
+	if err := s.CheckSessionFinished(); err != nil {
 		return true
-	default:
-		return false
 	}
+	return false
+	// switch s.State {
+	// case SessionCommitted, SessionAborted, SessionTerminated:
+	// 	return true
+	// default:
+	// 	return false
+	// }
 }
 
 func (s *Session) IsMaximumRetry() bool {
@@ -151,40 +158,99 @@ func (s *Session) CheckAllPartAbleToEnd() error {
 }
 
 var (
-	ErrSessionIsCommitting    = errors.New("session is Committing")
-	ErrSessionWasCommitted    = errors.New("session was Committed")
-	ErrSessionWasCommitFailed = errors.New("session was CommitFailed")
-	ErrSessionIsAborting      = errors.New("session is Aborting")
-	ErrSessionWasAborted      = errors.New("session was Aborted")
-	ErrSessionWasAbortFailed  = errors.New("session was AbortFailed")
+	ErrSessionIsCommitting       = errors.New("session is Committing")
+	ErrSessionWasCommitted       = errors.New("session was Committed")
+	ErrSessionWasCommitFailed    = errors.New("session was CommitFailed")
+	ErrSessionIsAborting         = errors.New("session is Aborting")
+	ErrSessionWasAborted         = errors.New("session was Aborted")
+	ErrSessionWasAbortFailed     = errors.New("session was AbortFailed")
+	ErrSessionIsTerminating      = errors.New("session is Terminating")
+	ErrSessionWasTerminated      = errors.New("session was Terminated")
+	ErrSessionWasTerminateFailed = errors.New("session was TerminateFailed")
 )
 
-func (s *Session) AbleToCommitOrRollback() error {
+func (s *Session) CheckInProcessing() error {
 	switch s.State {
 	case SessionCommitting:
 		return ErrSessionIsCommitting
-	case SessionCommitted:
-		return ErrSessionWasCommitted
-	case SessionCommitFailed:
-		return ErrSessionWasCommitFailed
 	case SessionAborting:
 		return ErrSessionIsAborting
-	case SessionAborted:
-		return ErrSessionWasAborted
-	case SessionAbortFailed:
-		return ErrSessionWasAbortFailed
-
-	}
-
-	if err := s.CheckSessionActive(); err != nil {
-		return err
-	}
-
-	if err := s.CheckAllPartAbleToEnd(); err != nil {
-		return err
+	case SessionTerminating:
+		return ErrSessionIsTerminating
 	}
 
 	return nil
+}
+
+func (s *Session) CheckSessionFinished() error {
+	switch s.State {
+	case SessionCommitted:
+		return ErrSessionWasCommitted
+	case SessionAborted:
+		return ErrSessionWasAborted
+	case SessionTerminated:
+		return ErrSessionWasTerminated
+	}
+
+	return nil
+}
+
+func (s *Session) CheckSessionFailed() error {
+	switch s.State {
+	case SessionCommitFailed:
+		return ErrSessionWasCommitFailed
+	case SessionAbortFailed:
+		return ErrSessionWasAbortFailed
+	case SessionTerminateFailed:
+		return ErrSessionWasTerminateFailed
+	}
+
+	return nil
+}
+
+func (s *Session) AbleToCommitOrRollback(commit bool) error {
+	if err := s.CheckInProcessing(); err != nil {
+		return err
+	}
+
+	if err := s.CheckSessionFinished(); err != nil {
+		return err
+	}
+
+	// check failed session for able to retry
+	if err := s.CheckSessionFailed(); err != nil {
+		// if request is commit, only commit-failed session is able to re-commit
+		if commit {
+			if errors.Is(err, ErrSessionWasCommitFailed) {
+				return nil
+			}
+		}
+	} else {
+		// fresh session, hasn't been called commit/abort/rollback
+		// so we need some conditional checks
+		if err := s.CheckSessionActive(); err != nil {
+			return err
+		}
+
+		if err := s.CheckAllPartAbleToEnd(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *Session) GetTerminateReason() string {
+	switch s.State {
+	case SessionCommitFailed:
+		return "maximum retry commit"
+	case SessionAbortFailed:
+		return "maximum retry abort"
+	case SessionTerminateFailed:
+		return "maximum retry terminate"
+	}
+
+	return "session expired"
 }
 
 func (s *Session) GetParticipantAt(id int64) *Participant {
