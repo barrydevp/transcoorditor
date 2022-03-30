@@ -14,6 +14,8 @@ require (
 	github.com/go-resty/resty/v2 v2.7.0 // indirect
 	github.com/gofiber/fiber/v2 v2.27.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
+	github.com/hashicorp/raft v1.3.6 // indirect
+	github.com/hashicorp/raft-boltdb/v2 v2.2.2 // indirect
 	github.com/klauspost/compress v1.14.3 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
