@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
 	"github.com/barrydevp/transcoorditor/pkg/app"
 	"github.com/barrydevp/transcoorditor/pkg/app/controller"
+	"github.com/barrydevp/transcoorditor/pkg/cluster"
 	"github.com/barrydevp/transcoorditor/pkg/common"
 	"github.com/barrydevp/transcoorditor/pkg/controlplane"
 	"github.com/barrydevp/transcoorditor/pkg/service"
@@ -14,6 +16,7 @@ import (
 	"github.com/barrydevp/transcoorditor/pkg/store/exclusive"
 	"github.com/barrydevp/transcoorditor/pkg/store/memory"
 	"github.com/barrydevp/transcoorditor/pkg/store/mongodb"
+	"github.com/barrydevp/transcoorditor/pkg/store/replset"
 	"github.com/spf13/viper"
 )
 
@@ -41,10 +44,21 @@ func RunApp() {
 	// init storage
 	s, err := initStore()
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("cannot init store: %w", err))
 	}
+
 	// add process synchronize exclusive locking when access data
-	s, err = exclusive.NewStore(s)
+	s, _ = exclusive.NewStore(s)
+
+	// // init cluster
+	clus := cluster.New()
+	// replset store
+	rsStore, _ := replset.NewReplStore(s, clus)
+
+	if err := clus.Run(rsStore); err != nil {
+		panic(fmt.Errorf("cannot run cluster: %w", err))
+	}
+	s = rsStore
 
 	// init action
 	ac := service.NewService(s)
@@ -53,7 +67,7 @@ func RunApp() {
 	ctrlplane := controlplane.New()
 
 	// add controler
-	ctrl := controller.NewController(ac)
+	ctrl := controller.NewController(clus, ac)
 	// register routes
 	ctrl.PublicRoutes(apiSrv.Srv)
 	// register reconciler

@@ -56,7 +56,7 @@ func (srv *Service) handleParticipantActions(session *schema.Session, compensate
 
 	if compensate {
 		partOKState = schema.ParticipantCompensated
-		partERRState = schema.ParticipantCompleted
+		partERRState = schema.ParticipantCompensateFailed
 	}
 
 	return srv.handlePartAction(session, func(part *schema.Participant) (*schema.ParticipantUpdate, error) {
@@ -76,9 +76,16 @@ func (srv *Service) handleParticipantActions(session *schema.Session, compensate
 			}
 		}
 
-		return &schema.ParticipantUpdate{
-			State:            &partState,
-			CompensateAction: action,
-		}, err
+		update := &schema.ParticipantUpdate{
+			State: &partState,
+		}
+
+		if compensate {
+			update.CompensateAction = action
+		} else {
+			update.CompleteAction = action
+		}
+
+		return update, err
 	})
 }

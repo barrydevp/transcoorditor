@@ -19,7 +19,7 @@ func (en *TimeoutSessionEntry) ExpiredAt() *time.Time {
 }
 
 func shouldRetryAfter2Mins(session *schema.Session, err error) bool {
-	if errors.Is(err, service.ErrSessionNotFound) {
+	if errors.Is(err, service.ErrSessionNotFound) || session == nil {
 		// dont retry not found entry
 		return false
 	}

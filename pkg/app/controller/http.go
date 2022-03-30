@@ -1,12 +1,51 @@
 package controller
 
 import (
+	"github.com/barrydevp/transcoorditor/pkg/cluster"
 	"github.com/barrydevp/transcoorditor/pkg/common"
 	"github.com/barrydevp/transcoorditor/pkg/exception"
 	"github.com/barrydevp/transcoorditor/pkg/schema"
 	"github.com/barrydevp/transcoorditor/pkg/util"
 	"github.com/gofiber/fiber/v2"
 )
+
+func (ctrl *Controller) InitiateClusterHttp(c *fiber.Ctx) error {
+	rsconf := &cluster.ClusterRsConf{}
+
+	if err := c.BodyParser(rsconf); err != nil {
+		return util.SendError(c, "unable to parse rsconf", err)
+	}
+
+	if err := ctrl.c.RsInitiate(rsconf); err != nil {
+		return util.SendError(c, "unable to initiate cluster replicaset", err)
+	}
+
+	confFuture := ctrl.c.Ra.GetConfiguration()
+	if confFuture.Error() != nil {
+		return util.SendError(c, "cannot get rsconf from cluster after initiate", confFuture.Error())
+	}
+
+	return util.SendOK(c, confFuture.Configuration())
+}
+
+func (ctrl *Controller) JoinClusterHttp(c *fiber.Ctx) error {
+	node := &cluster.Node{}
+
+	if err := c.BodyParser(node); err != nil {
+		return util.SendError(c, "unable to parse node", err)
+	}
+
+	if err := ctrl.c.Join(node); err != nil {
+		return util.SendError(c, "unable to join cluster replicaset", err)
+	}
+
+	confFuture := ctrl.c.Ra.GetConfiguration()
+	if confFuture.Error() != nil {
+		return util.SendError(c, "cannot get rsconf from cluster", confFuture.Error())
+	}
+
+	return util.SendOK(c, confFuture.Configuration())
+}
 
 func (ctrl *Controller) GetSessionByIdHttp(c *fiber.Ctx) error {
 	sessionId := c.Params("sessionId")

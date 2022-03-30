@@ -220,10 +220,11 @@ func (s *Session) AbleToCommitOrRollback(commit bool) error {
 
 	// check failed session for able to retry
 	if err := s.CheckSessionFailed(); err != nil {
-		// if request is commit, only commit-failed session is able to re-commit
 		if commit {
-			if errors.Is(err, ErrSessionWasCommitFailed) {
-				return nil
+			// if request is commit, only commit-failed session is able to re-commit
+			// eg: abort-failed commit is unable to commit
+			if !errors.Is(err, ErrSessionWasCommitFailed) {
+				return err
 			}
 		}
 	} else {

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"github.com/barrydevp/transcoorditor/pkg/cluster"
 	"github.com/barrydevp/transcoorditor/pkg/common"
 	"github.com/barrydevp/transcoorditor/pkg/controlplane"
 	"github.com/barrydevp/transcoorditor/pkg/controlplane/reconciler"
@@ -14,14 +15,15 @@ var logger = common.Logger().WithFields(logrus.Fields{
 })
 
 type Controller struct {
+	c    *cluster.Cluster
 	srv  *service.Service
 	recl *reconciler.ScheduleReconciler
 	l    *logrus.Entry
 }
 
-func NewController(srv *service.Service) *Controller {
-
+func NewController(c *cluster.Cluster, srv *service.Service) *Controller {
 	return &Controller{
+		c:   c,
 		srv: srv,
 		l: common.Logger().WithFields(logrus.Fields{
 			"pkg": "ctrl",
@@ -33,7 +35,11 @@ func (ctrl *Controller) PublicRoutes(a *fiber.App) {
 	// create route
 	route := a.Group("/api/v1")
 
-	// register routes
+	// cluster routes
+	route.Post("/cluster/initiate", ctrl.InitiateClusterHttp)
+	route.Post("/cluster/join", ctrl.JoinClusterHttp)
+
+	// txn routes
 	route.Get("/sessions", ctrl.ListSessionHttp)
 	route.Get("/sessions/:sessionId", ctrl.GetSessionByIdHttp)
 	route.Put("/sessions/:sessionId", ctrl.PutSessionByIdHttp)

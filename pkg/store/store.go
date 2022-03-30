@@ -1,6 +1,7 @@
 package store
 
 import (
+	"github.com/barrydevp/transcoorditor/pkg/cluster"
 	"github.com/barrydevp/transcoorditor/pkg/exception"
 	"github.com/barrydevp/transcoorditor/pkg/schema"
 )
@@ -13,6 +14,7 @@ type (
 	Interface interface {
 		Session() Session
 		Participant() Participant
+		GetApplier() cluster.Applier
 		Close()
 	}
 
@@ -49,4 +51,8 @@ func (b *Backend) Session() Session {
 
 func (b *Backend) Participant() Participant {
 	return b.ParticipantImpl
+}
+
+func (b *Backend) GetApplier() cluster.Applier {
+	return nil
 }
