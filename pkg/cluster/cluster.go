@@ -48,10 +48,11 @@ func New() *Cluster {
 
 func (c *Cluster) Run(applier Applier) (err error) {
 	rcfg := &RaftConfig{
-		Ap:     applier,
-		Addr:   viper.GetString("NODE_ADDR"),
-		SID:    viper.GetString("NODE_ID"),
-		DBFile: viper.GetString("RAFT_DB"),
+		Ap:      applier,
+		Addr:    viper.GetString("NODE_ADDR"),
+		SID:     viper.GetString("NODE_ID"),
+		DBFile:  viper.GetString("RAFT_DB"),
+		BaseDir: viper.GetString("CLUSTER_BASE_DIR"),
 	}
 
 	if c.Ra, err = NewRaft(rcfg); err != nil {
@@ -74,7 +75,7 @@ func (c *Cluster) RsInitiate(rsconf *ClusterRsConf) error {
 		}
 	}
 
-    logger.Info(servers)
+	logger.Info(servers)
 
 	future := c.Ra.BootstrapCluster(raft.Configuration{
 		Servers: servers,
@@ -128,4 +129,28 @@ func (c *Cluster) Execute(cmd *Command, timeout time.Duration) (interface{}, err
 	}
 
 	return nil, ErrUnknownApplyResponse
+}
+
+func (c *Cluster) GetConf() (*raft.Configuration, error) {
+	if c.Ra == nil {
+		return nil, ErrClusterNotRunning
+	}
+
+	confFuture := c.Ra.GetConfiguration()
+
+	if confFuture.Error() != nil {
+		return nil, confFuture.Error()
+	}
+
+	conf := confFuture.Configuration()
+
+	return &conf, nil
+}
+
+func (c *Cluster) Leader() *Node {
+	if c.Ra == nil {
+		return nil
+	}
+
+	return &Node{}
 }

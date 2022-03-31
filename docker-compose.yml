@@ -1,6 +1,19 @@
 # dependencies only
 version: "3.9"
 
+x-baseservice: &baseservice
+  build: .
+  networks:
+    - default
+    - transcoorditor
+
+x-common-env: &common-env
+  - DEBUG_LEVEL=debug
+  - PORT=8000
+  - SERVER_READ_TIMEOUT=300
+  - CLUSTER_BASE_DIR=/cluster
+  - RAFT_DB=raft.db
+
 # Network configuration
 networks:
   transcoorditor:
@@ -20,7 +33,7 @@ services:
     #   - mongo2
     # entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0" ]
     volumes:
-      - ./.local/data:/data/db
+      - ./.local/mongodb/data:/data/db
 
   # mongo1:
   #   container_name: mongo1
@@ -40,21 +53,63 @@ services:
   #   volumes:
   #     - ./.local/data2:/data/db
 
-  transcoorditor:
-    build: .
-    container_name: transcoorditor
+  transcoorditor1:
+    <<: *baseservice
+    container_name: transcoorditor1
     environment:
-      # - MONGODB_URI=mongodb://mongodb:27017,mongo1:27017,mongo2:27017/?replicaSet=rs0
+      - NODE_ADDR=transcoorditor1:7000
+      - NODE_ID=transcoorditor1
+      - BACKEND_STORE=boltdb
       - MONGODB_URI=mongodb://mongodb:27017
-      - BOLTDB_PATH=/bolt/bolt.db
-      # - BACKEND_STORE=mongodb
+      - BOLTDB_PATH=/cluster/bolt.db
     depends_on:
       - mongodb
     ports:
-      - "8000:8000"
+      - "8001:8000"
+      - "7001:7000"
     volumes:
-      - ./.local/bolt:/bolt
+      - ./.local/cluster1:/cluster
     networks:
       - default
       - transcoorditor
 
+  transcoorditor2:
+    <<: *baseservice
+    container_name: transcoorditor2
+    environment:
+      - NODE_ADDR=transcoorditor2:7000
+      - NODE_ID=transcoorditor2
+      - BACKEND_STORE=mongodb
+      # - MONGODB_URI=mongodb://mongodb:27017,mongo1:27017,mongo2:27017/?replicaSet=rs0
+      - MONGODB_URI=mongodb://mongodb:27017
+      - MONGODB_DB=transcoorditor2
+    depends_on:
+      - mongodb
+    ports:
+      - "8002:8000"
+      - "7002:7000"
+    volumes:
+      - ./.local/cluster2:/cluster
+    networks:
+      - default
+      - transcoorditor
+
+  transcoorditor3:
+    <<: *baseservice
+    container_name: transcoorditor3
+    environment:
+      - NODE_ADDR=transcoorditor3:7000
+      - NODE_ID=transcoorditor3
+      - BACKEND_STORE=boltdb
+      - MONGODB_URI=mongodb://mongodb:27017
+      - BOLTDB_PATH=/cluster/bolt.db
+    depends_on:
+      - mongodb
+    ports:
+      - "8003:8000"
+      - "7003:7000"
+    volumes:
+      - ./.local/cluster3:/cluster
+    networks:
+      - default
+      - transcoorditor
