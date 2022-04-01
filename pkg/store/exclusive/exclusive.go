@@ -50,6 +50,7 @@ func NewStore(s store.Interface) (*exclusiveBackend, error) {
 	backend := &store.Backend{
 		SessionImpl:     NewSession(s.Session()),
 		ParticipantImpl: NewParticipant(s.Participant()),
+		ReplsetImpl:     NewReplset(s.Replset()),
 	}
 
 	return &exclusiveBackend{

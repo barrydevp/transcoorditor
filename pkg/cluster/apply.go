@@ -2,12 +2,14 @@ package cluster
 
 import (
 	"encoding/json"
+
+	"github.com/hashicorp/raft"
 )
 
 type Applier interface {
 	// GetLastIndex()
 	// GetLastTerm()
-	Apply(c *Command) *ApplyResponse
+	Apply(c *Command, log *raft.Log) *ApplyResponse
 }
 
 type ApplyResponse struct {

@@ -83,6 +83,7 @@ func RunApp() {
 
 	// cleanup
 	ctrlplane.Stop()
+	clus.Stop()
 	s.Close()
 
 }

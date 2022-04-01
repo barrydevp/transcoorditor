@@ -152,7 +152,7 @@ func (f *fsm) Apply(log *raft.Log) interface{} {
 			Res: nil,
 		}
 	} else {
-		response = f.ap.Apply(&cmd)
+		response = f.ap.Apply(&cmd, log)
 
 	}
 

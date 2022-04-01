@@ -2,11 +2,13 @@ package replset
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/barrydevp/transcoorditor/pkg/cluster"
 	"github.com/barrydevp/transcoorditor/pkg/common"
 	"github.com/barrydevp/transcoorditor/pkg/store"
+	"github.com/hashicorp/raft"
 	"github.com/sirupsen/logrus"
 )
 
@@ -30,22 +32,35 @@ type replsetBackend struct {
 
 	internalSession     *sessionRepo
 	internalParticipant *participantRepo
+	// indicate that the store is in replaying cmd state which is happend when starting replset server (early period after you run server in replset mode)
+	replaying bool
+	lastLog   *raft.Log
 }
 
 func NewReplStore(s store.Interface, c *cluster.Cluster) (*replsetBackend, error) {
-	replset := &replsetBackend{
+	rs := &replsetBackend{
 		s: s,
 		c: c,
 	}
 
-	replset.internalSession = NewSession(replset)
-	replset.internalParticipant = NewParticipant(replset)
-	replset.Backend = &store.Backend{
-		SessionImpl:     replset.internalSession,
-		ParticipantImpl: replset.internalParticipant,
+	rs.internalSession = NewSession(rs)
+	rs.internalParticipant = NewParticipant(rs)
+	rs.Backend = &store.Backend{
+		SessionImpl:     rs.internalSession,
+		ParticipantImpl: rs.internalParticipant,
+	}
+	// retrive last log from backend store
+	lastLog, err := s.Replset().GetLastLog()
+	if err != nil {
+		return rs, err
+	}
+	if lastLog != nil {
+		logger.Info("Detect last log, change into replaying mode")
+		rs.replaying = true
+		rs.lastLog = lastLog
 	}
 
-	return replset, nil
+	return rs, nil
 }
 
 // @overide
@@ -71,11 +86,29 @@ func (s *replsetBackend) executeRPC(c *cluster.Command) *cluster.ApplyResponse {
 }
 
 // @overide for Applier
-func (s *replsetBackend) Apply(c *cluster.Command) *cluster.ApplyResponse {
+func (rs *replsetBackend) Apply(c *cluster.Command, log *raft.Log) *cluster.ApplyResponse {
+	// skip old command when in replaying mode
+	if rs.replaying && rs.lastLog != nil {
+		// @TODO: verify log.Term to determine this replset node is in in-consistent state
+		if log.Index <= rs.lastLog.Index {
+			logger.Info("Skip old cmd, comming index: ", log.Index, " last persisted index: ", rs.lastLog.Index)
+			return nil
+		} else {
+			// disable replaying mode
+			rs.replaying = false
+		}
+	}
+
 	switch c.Op {
 	case cluster.RpcOp:
-		return s.executeRPC(c)
+		return rs.executeRPC(c)
 	}
+
+	err := rs.s.Replset().SaveLastLog(log)
+	if err != nil {
+		return NewApplyErr(fmt.Errorf("cannot save last log: %w", err))
+	}
+	// rs.lastLog = log
 
 	return NewApplyErr(ErrCmdUnsupported)
 }

@@ -4,6 +4,7 @@ import (
 	"github.com/barrydevp/transcoorditor/pkg/cluster"
 	"github.com/barrydevp/transcoorditor/pkg/exception"
 	"github.com/barrydevp/transcoorditor/pkg/schema"
+	"github.com/hashicorp/raft"
 )
 
 var (
@@ -14,8 +15,14 @@ type (
 	Interface interface {
 		Session() Session
 		Participant() Participant
+		Replset() Replset
 		GetApplier() cluster.Applier
 		Close()
+	}
+
+	Replset interface {
+		SaveLastLog(log *raft.Log) error
+		GetLastLog() (*raft.Log, error)
 	}
 
 	Session interface {
@@ -43,6 +50,7 @@ type (
 type Backend struct {
 	SessionImpl     Session
 	ParticipantImpl Participant
+	ReplsetImpl     Replset
 }
 
 func (b *Backend) Session() Session {
@@ -51,6 +59,10 @@ func (b *Backend) Session() Session {
 
 func (b *Backend) Participant() Participant {
 	return b.ParticipantImpl
+}
+
+func (b *Backend) Replset() Replset {
+	return b.ReplsetImpl
 }
 
 func (b *Backend) GetApplier() cluster.Applier {

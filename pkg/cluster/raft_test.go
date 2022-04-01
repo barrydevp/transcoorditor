@@ -15,7 +15,7 @@ type applier struct {
 	kv map[string]string
 }
 
-func (a *applier) Apply(cmd *cluster.Command) *cluster.ApplyResponse {
+func (a *applier) Apply(cmd *cluster.Command, log *raft.Log) *cluster.ApplyResponse {
 	resp := &cluster.ApplyResponse{}
 	fmt.Println("applier -> cmd: ", cmd)
 	switch cmd.Op {

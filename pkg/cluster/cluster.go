@@ -64,6 +64,11 @@ func (c *Cluster) Run(applier Applier) (err error) {
 	return nil
 }
 
+func (c *Cluster) Stop() {
+    // snapshot
+
+}
+
 func (c *Cluster) RsInitiate(rsconf *ClusterRsConf) error {
 	if c.Ra == nil {
 		return ErrClusterNotRunning

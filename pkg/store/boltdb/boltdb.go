@@ -88,6 +88,7 @@ func NewStore() (store.Interface, error) {
 	backend := &store.Backend{
 		SessionImpl:     NewSession(baseRepo),
 		ParticipantImpl: NewParticipant(baseRepo),
+		ReplsetImpl:     NewReplset(baseRepo),
 	}
 
 	return &boltdbBackend{
