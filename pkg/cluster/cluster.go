@@ -17,6 +17,7 @@ var (
 
 	ErrClusterNotRunning    = errors.New("cluster is not running")
 	ErrUnknownApplyResponse = errors.New("unknown apply response")
+	ErrNotLeader            = errors.New("not leader")
 )
 
 type Cluster struct {
@@ -40,6 +41,7 @@ func (n *Node) addr() raft.ServerAddress {
 type ClusterRsConf struct {
 	RsName string
 	Nodes  []*Node
+	Leader *Node
 }
 
 func New() *Cluster {
@@ -75,8 +77,6 @@ func (c *Cluster) RsInitiate(rsconf *ClusterRsConf) error {
 		}
 	}
 
-	logger.Info(servers)
-
 	future := c.Ra.BootstrapCluster(raft.Configuration{
 		Servers: servers,
 	})
@@ -89,11 +89,25 @@ func (c *Cluster) RsInitiate(rsconf *ClusterRsConf) error {
 }
 
 func (c *Cluster) Join(node *Node) error {
-	if c.Ra == nil {
-		return ErrClusterNotRunning
+	if err := c.AssertRunning(); err != nil {
+		return err
 	}
 
 	future := c.Ra.AddVoter(node.id(), node.addr(), 0, 5*time.Second)
+
+	if future.Error() != nil {
+		return future.Error()
+	}
+
+	return nil
+}
+
+func (c *Cluster) Left(node *Node) error {
+	if err := c.AssertRunning(); err != nil {
+		return err
+	}
+
+	future := c.Ra.RemoveServer(node.id(), 0, 5*time.Second)
 
 	if future.Error() != nil {
 		return future.Error()
@@ -131,9 +145,9 @@ func (c *Cluster) Execute(cmd *Command, timeout time.Duration) (interface{}, err
 	return nil, ErrUnknownApplyResponse
 }
 
-func (c *Cluster) GetConf() (*raft.Configuration, error) {
-	if c.Ra == nil {
-		return nil, ErrClusterNotRunning
+func (c *Cluster) GetRaftConf() (*raft.Configuration, error) {
+	if err := c.AssertRunning(); err != nil {
+		return nil, err
 	}
 
 	confFuture := c.Ra.GetConfiguration()
@@ -147,10 +161,78 @@ func (c *Cluster) GetConf() (*raft.Configuration, error) {
 	return &conf, nil
 }
 
-func (c *Cluster) Leader() *Node {
-	if c.Ra == nil {
-		return nil
+func (c *Cluster) GetConf() (*ClusterRsConf, error) {
+	raftConf, err := c.GetRaftConf()
+	if err != nil {
+		return nil, err
 	}
 
-	return &Node{}
+	rsconf := &ClusterRsConf{}
+	leaderAddr := c.Ra.Leader()
+	for _, server := range raftConf.Servers {
+		n := &Node{
+			ID:   string(server.ID),
+			Host: string(server.Address),
+		}
+		rsconf.Nodes = append(rsconf.Nodes, n)
+		if server.Address == leaderAddr {
+			rsconf.Leader = n
+		}
+	}
+
+	return rsconf, nil
+}
+
+func (c *Cluster) AssertRunning() error {
+	if c.Ra == nil {
+		return ErrClusterNotRunning
+	}
+	return nil
+}
+
+func (c *Cluster) AssertLeader() error {
+	// ensure cluster is running when call
+	if c.Ra.State() != raft.Leader {
+		return ErrNotLeader
+	}
+	return nil
+}
+
+func (c *Cluster) VerifyLeader() error {
+	verifyFuture := c.Ra.VerifyLeader()
+	if verifyFuture.Error() != nil {
+		return verifyFuture.Error()
+	}
+
+	return nil
+}
+
+func (c *Cluster) Leader() (*Node, error) {
+	conf, err := c.GetConf()
+	if err != nil {
+		return nil, err
+	}
+
+	return conf.Leader, nil
+}
+
+func (c *Cluster) LeaderHost() string {
+	// ensure cluster is running when call
+	return string(c.Ra.Leader())
+}
+
+func (c *Cluster) Stats() (map[string]string, error) {
+	if err := c.AssertRunning(); err != nil {
+		return nil, err
+	}
+
+	return c.Ra.Stats(), nil
+}
+
+func (c *Cluster) LeaderCh() (<-chan bool, error) {
+	if err := c.AssertRunning(); err != nil {
+		return nil, err
+	}
+
+	return c.Ra.LeaderCh(), nil
 }

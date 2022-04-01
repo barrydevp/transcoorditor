@@ -101,7 +101,7 @@ func (r *ScheduleReconciler) getExpiredEntriesAndNext(now time.Time) ([]Schedule
 }
 
 // this must be called once at a time (mean you must Lock the mutex)
-func (r *ScheduleReconciler) interupt() {
+func (r *ScheduleReconciler) interrupt() {
 	// if reconciler is waiting, signal it and set watiting to false
 	if r.interruptCh != nil {
 		select {
@@ -116,22 +116,7 @@ func (r *ScheduleReconciler) Bootstrap() {
 	r.ScheduleBatch(entries)
 }
 
-// this should running inside an goroutine and call once at a time
-func (r *ScheduleReconciler) Reconcile(stopCh <-chan struct{}) {
-	// r.mutex.Lock()
-	if r.interruptCh != nil {
-		// r.mutex.Unlock()
-		return
-	}
-	// r.mutex.Unlock()
-
-	logger.Info("Start scheduling...")
-
-	interCh := make(chan struct{}, 1)
-	waitCh := make(chan struct{})
-	r.interruptCh = &interCh
-	r.waitCh = &waitCh
-
+func (r *ScheduleReconciler) scheduleLoop(stopCh <-chan struct{}) {
 	for {
 		now := time.Now()
 
@@ -179,6 +164,24 @@ func (r *ScheduleReconciler) Reconcile(stopCh <-chan struct{}) {
 	}
 }
 
+// this should running inside an goroutine and call once at a time
+func (r *ScheduleReconciler) Reconcile(stopCh <-chan struct{}) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+	if r.interruptCh != nil {
+		return
+	}
+
+	logger.Info("Start scheduling...")
+
+	interCh := make(chan struct{}, 1)
+	waitCh := make(chan struct{})
+	r.interruptCh = &interCh
+	r.waitCh = &waitCh
+
+	go r.scheduleLoop(stopCh)
+}
+
 func (r *ScheduleReconciler) cleanup() {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
@@ -190,10 +193,12 @@ func (r *ScheduleReconciler) cleanup() {
 
 	if r.interruptCh != nil {
 		close(*r.interruptCh)
+		r.interruptCh = nil
 	}
 
 	if r.waitCh != nil {
 		close(*r.waitCh)
+		r.waitCh = nil
 	}
 }
 
@@ -202,7 +207,7 @@ func (r *ScheduleReconciler) Schedule(entry ScheduleEntry) {
 	defer r.mutex.Unlock()
 
 	heap.Push(r.scheQueue, entry)
-	r.interupt()
+	r.interrupt()
 }
 
 func (r *ScheduleReconciler) ScheduleBatch(entries []ScheduleEntry) {
@@ -212,7 +217,7 @@ func (r *ScheduleReconciler) ScheduleBatch(entries []ScheduleEntry) {
 	for _, entry := range entries {
 		heap.Push(r.scheQueue, entry)
 	}
-	r.interupt()
+	r.interrupt()
 }
 
 func (r *ScheduleReconciler) WaitStop() <-chan struct{} {

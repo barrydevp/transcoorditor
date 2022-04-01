@@ -38,6 +38,9 @@ func (ctrl *Controller) PublicRoutes(a *fiber.App) {
 	// cluster routes
 	route.Post("/cluster/initiate", ctrl.InitiateClusterHttp)
 	route.Post("/cluster/join", ctrl.JoinClusterHttp)
+	route.Post("/cluster/left", ctrl.LeftClusterHttp)
+	route.Get("/cluster/rsconf", ctrl.GetClusterRsConfHttp)
+	route.Get("/cluster/stats", ctrl.GetClusterStatsHttp)
 
 	// txn routes
 	route.Get("/sessions", ctrl.ListSessionHttp)

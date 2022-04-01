@@ -39,12 +39,49 @@ func (ctrl *Controller) JoinClusterHttp(c *fiber.Ctx) error {
 		return util.SendError(c, "unable to join cluster replicaset", err)
 	}
 
-	confFuture := ctrl.c.Ra.GetConfiguration()
-	if confFuture.Error() != nil {
-		return util.SendError(c, "cannot get rsconf from cluster", confFuture.Error())
+	conf, err := ctrl.c.GetConf()
+	if err != nil {
+		return util.SendError(c, "unable to get rsconf from cluster", err)
 	}
 
-	return util.SendOK(c, confFuture.Configuration())
+	return util.SendOK(c, conf)
+}
+
+func (ctrl *Controller) LeftClusterHttp(c *fiber.Ctx) error {
+	node := &cluster.Node{}
+
+	if err := c.BodyParser(node); err != nil {
+		return util.SendError(c, "unable to parse node", err)
+	}
+
+	if err := ctrl.c.Left(node); err != nil {
+		return util.SendError(c, "unable to left cluster replicaset", err)
+	}
+
+	conf, err := ctrl.c.GetConf()
+	if err != nil {
+		return util.SendError(c, "unable to get rsconf from cluster", err)
+	}
+
+	return util.SendOK(c, conf)
+}
+
+func (ctrl *Controller) GetClusterRsConfHttp(c *fiber.Ctx) error {
+	conf, err := ctrl.c.GetConf()
+	if err != nil {
+		return util.SendError(c, "unable get cluster's rsconf", err)
+	}
+
+	return util.SendOK(c, conf)
+}
+
+func (ctrl *Controller) GetClusterStatsHttp(c *fiber.Ctx) error {
+	stats, err := ctrl.c.Stats()
+	if err != nil {
+		return util.SendError(c, "cannot get cluster's stats", err)
+	}
+
+	return util.SendOK(c, stats)
 }
 
 func (ctrl *Controller) GetSessionByIdHttp(c *fiber.Ctx) error {

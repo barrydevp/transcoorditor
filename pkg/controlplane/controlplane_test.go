@@ -37,11 +37,11 @@ func (r *reconciler) WaitStop() <-chan struct{} {
 
 func TestControlplane(t *testing.T) {
 	recl := &reconciler{}
-	ctrlplane := controlplane.New()
+	ctrlplane := controlplane.New(nil)
 
 	ctrlplane.RegisterRecl(recl)
 
-	ctrlplane.Start()
+	ctrlplane.Run()
 
 	time.Sleep(5 * time.Second)
 

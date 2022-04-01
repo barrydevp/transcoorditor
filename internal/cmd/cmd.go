@@ -64,7 +64,7 @@ func RunApp() {
 	ac := service.NewService(s)
 
 	// init controlplane
-	ctrlplane := controlplane.New()
+	ctrlplane := controlplane.New(clus)
 
 	// add controler
 	ctrl := controller.NewController(clus, ac)
@@ -74,7 +74,9 @@ func RunApp() {
 	ctrl.RegisterReconciler(ctrlplane)
 
 	// Run controlplane
-	ctrlplane.Start()
+	if err = ctrlplane.Run(); err != nil {
+		panic(fmt.Errorf("cannot run controlplane: %w", err))
+	}
 
 	// Run server -> Start blocking from here
 	apiSrv.Run()

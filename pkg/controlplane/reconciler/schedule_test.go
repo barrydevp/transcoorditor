@@ -46,11 +46,11 @@ func TestScheduleReconciler(t *testing.T) {
 
 			return rets
 		})
-	ctrlplane := controlplane.New()
+	ctrlplane := controlplane.New(nil)
 
 	ctrlplane.RegisterRecl(recl)
 
-	ctrlplane.Start()
+	ctrlplane.Run()
 
 	now := time.Now()
 

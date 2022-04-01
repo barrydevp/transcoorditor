@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/barrydevp/transcoorditor/pkg/cluster"
 	"github.com/barrydevp/transcoorditor/pkg/common"
 	"github.com/sirupsen/logrus"
 )
@@ -23,49 +24,108 @@ type Reconciler interface {
 }
 
 type ControlPlane struct {
+	c     *cluster.Cluster
 	recls []Reconciler
 
-	mutex  sync.Mutex
-	stopCh *chan struct{}
+	mutex      sync.Mutex
+	stopCh     *chan struct{}
+	reclStopCh *chan struct{}
 }
 
-func New() *ControlPlane {
+func New(c *cluster.Cluster) *ControlPlane {
 	return &ControlPlane{
+		c:     c,
 		mutex: sync.Mutex{},
 	}
 }
 
-func (c *ControlPlane) Start() {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	// only start once
-	if c.stopCh == nil {
-		stop := make(chan struct{})
-		c.stopCh = &stop
+func (ctrl *ControlPlane) watchClusterLeader(leaderCh <-chan bool) {
+	// do we need to check leadership before watch on leaderCh for manually start reconciler?
+	logger.Info("Watch leadership...")
 
-		logger.Info("Bootstrapping...")
-		// Bootstrap phase
-		for i := range c.recls {
-			c.recls[i].Bootstrap()
+	for {
+		select {
+		case isLeader := <-leaderCh:
+			ctrl.mutex.Lock()
+			if isLeader {
+				logger.Info("[+] on Leader")
+				ctrl.unsafeStartReconciler()
+			} else {
+				logger.Info("[-] on Follower")
+				ctrl.unsafeStopReconciler()
+			}
+			ctrl.mutex.Unlock()
+		case <-*ctrl.stopCh:
+			// the stopCh's sender must manully stop reconciling
+			return
 		}
 
-		logger.Info("Reconciling...")
-		// Reconcile phase
-		for i := range c.recls {
-			go c.recls[i].Reconcile(*c.stopCh)
-		}
 	}
 }
 
-func (c *ControlPlane) Stop() {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+func (ctrl *ControlPlane) Run() error {
+	ctrl.mutex.Lock()
+	defer ctrl.mutex.Unlock()
 
-	if c.stopCh != nil {
-		close(*c.stopCh)
-		c.stopCh = nil
+	if ctrl.stopCh != nil {
+		return nil
+	}
 
-		// wait for all controller to stop?
+	// watch leader transfer on cluster leader channel
+	var leaderCh <-chan bool
+	if ctrl.c != nil {
+		ch, err := ctrl.c.LeaderCh()
+		if err != nil {
+			return err
+		}
+		leaderCh = ch
+	} else {
+		// for non-cluster mode
+		// @FIXME: this channel must be close some where when stop
+		ch := make(chan bool, 1)
+		// simulate leadership
+		ch <- true
+
+		leaderCh = ch
+	}
+
+	stop := make(chan struct{})
+	ctrl.stopCh = &stop
+	logger.Info("Running...")
+
+	go ctrl.watchClusterLeader(leaderCh)
+
+	return nil
+}
+
+func (c *ControlPlane) unsafeStartReconciler() {
+	// only start once
+	if c.reclStopCh != nil {
+		return
+	}
+
+	stop := make(chan struct{})
+	c.reclStopCh = &stop
+
+	logger.Info("+ Boot recl")
+	// Bootstrap phase
+	for i := range c.recls {
+		c.recls[i].Bootstrap()
+	}
+
+	logger.Info("+ Reconcile recl")
+	// Reconcile phase
+	for i := range c.recls {
+		go c.recls[i].Reconcile(*c.reclStopCh)
+	}
+}
+
+func (c *ControlPlane) unsafeStopReconciler() {
+	if c.reclStopCh != nil {
+		close(*c.reclStopCh)
+		c.reclStopCh = nil
+
+		// wait for all controller to stop? => turn deadline timeout as an option
 		deadline := time.NewTimer(STOP_DEADLINE * time.Second)
 		for i := range c.recls {
 			select {
@@ -76,8 +136,22 @@ func (c *ControlPlane) Stop() {
 		}
 		deadline.Stop()
 
-		logger.Info("Stopped")
+		logger.Info("- recl Stopped")
 	}
+}
+
+func (c *ControlPlane) Stop() {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	if c.stopCh != nil {
+		close(*c.stopCh)
+		c.stopCh = nil
+	}
+
+	c.unsafeStopReconciler()
+
+	logger.Info("Stopped!")
 }
 
 func (c *ControlPlane) RegisterRecl(recl Reconciler) {
