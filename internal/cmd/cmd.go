@@ -69,6 +69,8 @@ func RunApp() {
 	// add controler
 	ctrl := controller.NewController(clus, ac)
 	// register routes
+	ctrl.SystemRoutes(apiSrv.Srv)
+	// register routes
 	ctrl.PublicRoutes(apiSrv.Srv)
 	// register reconciler
 	ctrl.RegisterReconciler(ctrlplane)

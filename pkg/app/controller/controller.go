@@ -31,9 +31,9 @@ func NewController(c *cluster.Cluster, srv *service.Service) *Controller {
 	}
 }
 
-func (ctrl *Controller) PublicRoutes(a *fiber.App) {
+func (ctrl *Controller) SystemRoutes(a *fiber.App) {
 	// create route
-	route := a.Group("/api/v1")
+	route := a.Group("/api/sys")
 
 	// cluster routes
 	route.Post("/cluster/initiate", ctrl.InitiateClusterHttp)
@@ -41,6 +41,11 @@ func (ctrl *Controller) PublicRoutes(a *fiber.App) {
 	route.Post("/cluster/left", ctrl.LeftClusterHttp)
 	route.Get("/cluster/rsconf", ctrl.GetClusterRsConfHttp)
 	route.Get("/cluster/stats", ctrl.GetClusterStatsHttp)
+}
+
+func (ctrl *Controller) PublicRoutes(a *fiber.App) {
+	// create route
+	route := a.Group("/api/v1")
 
 	// txn routes
 	route.Get("/sessions", ctrl.ListSessionHttp)
