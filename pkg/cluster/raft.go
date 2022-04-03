@@ -143,7 +143,7 @@ func (f *fsm) Apply(log *raft.Log) interface{} {
 	if err := json.Unmarshal(log.Data, &cmd); err != nil {
 		panic(fmt.Errorf("malformed OpLog: %w", err))
 	}
-	logger.Info(" + [fsm] Apply Log: ", cmd.Op)
+	logger.Info(" + [fsm] Apply Log: ", cmd.Op, cmd.Ns, string(cmd.K))
 
 	var response *ApplyResponse
 	if f.ap == nil {
@@ -161,20 +161,25 @@ func (f *fsm) Apply(log *raft.Log) interface{} {
 
 func (f *fsm) Snapshot() (raft.FSMSnapshot, error) {
 	fmt.Println("[fsm] Snapshot")
-	return nil, nil
-	// return &fsmSnapshot{}, nil
+	return &fsmSnapshot{}, nil
 }
 
 func (f *fsm) Restore(snapshot io.ReadCloser) error {
 	fmt.Println("[fsm] Restore")
-	o := make(map[string]string)
-	if err := json.NewDecoder(snapshot).Decode(&o); err != nil {
-		return err
-	}
-
-	// f.kv = o
 	return nil
 }
 
 type fsmSnapshot struct {
+}
+
+func (f *fsmSnapshot) Persist(sink raft.SnapshotSink) error {
+	_, err := sink.Write([]byte(""))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (f *fsmSnapshot) Release() {
 }

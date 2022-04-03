@@ -99,9 +99,13 @@ func (rs *replsetBackend) Apply(c *cluster.Command, log *raft.Log) *cluster.Appl
 		}
 	}
 
+	var resp *cluster.ApplyResponse
+
 	switch c.Op {
 	case cluster.RpcOp:
-		return rs.executeRPC(c)
+		resp = rs.executeRPC(c)
+	default:
+		resp = NewApplyErr(ErrCmdUnsupported)
 	}
 
 	err := rs.s.Replset().SaveLastLog(log)
@@ -110,5 +114,5 @@ func (rs *replsetBackend) Apply(c *cluster.Command, log *raft.Log) *cluster.Appl
 	}
 	// rs.lastLog = log
 
-	return NewApplyErr(ErrCmdUnsupported)
+	return resp
 }

@@ -26,12 +26,12 @@ type Cluster struct {
 }
 
 type Node struct {
-	ID   string
-	Host string
+	Endpoint string
+	Host     string
 }
 
 func (n *Node) id() raft.ServerID {
-	return raft.ServerID(n.ID)
+	return raft.ServerID(n.Endpoint)
 }
 
 func (n *Node) addr() raft.ServerAddress {
@@ -39,9 +39,10 @@ func (n *Node) addr() raft.ServerAddress {
 }
 
 type ClusterRsConf struct {
-	RsName string
-	Nodes  []*Node
-	Leader *Node
+	RsName  string
+	Nodes   []*Node
+	Leader  *Node
+	Current *Node
 }
 
 func New() *Cluster {
@@ -65,8 +66,11 @@ func (c *Cluster) Run(applier Applier) (err error) {
 }
 
 func (c *Cluster) Stop() {
-    // snapshot
-
+	// snapshot
+	snapFuture := c.Ra.Snapshot()
+	if err := snapFuture.Error(); err != nil {
+		logger.Infof("The cluster hasn't close gracefully: %v\n", err)
+	}
 }
 
 func (c *Cluster) RsInitiate(rsconf *ClusterRsConf) error {
@@ -176,12 +180,15 @@ func (c *Cluster) GetConf() (*ClusterRsConf, error) {
 	leaderAddr := c.Ra.Leader()
 	for _, server := range raftConf.Servers {
 		n := &Node{
-			ID:   string(server.ID),
-			Host: string(server.Address),
+			Endpoint: string(server.ID),
+			Host:     string(server.Address),
 		}
 		rsconf.Nodes = append(rsconf.Nodes, n)
 		if server.Address == leaderAddr {
 			rsconf.Leader = n
+		}
+		if server.Address == raft.ServerAddress(c.Ra.Cfg.Addr) {
+			rsconf.Current = n
 		}
 	}
 
@@ -219,6 +226,15 @@ func (c *Cluster) Leader() (*Node, error) {
 	}
 
 	return conf.Leader, nil
+}
+
+func (c *Cluster) Current() (*Node, error) {
+	conf, err := c.GetConf()
+	if err != nil {
+		return nil, err
+	}
+
+	return conf.Current, nil
 }
 
 func (c *Cluster) LeaderHost() string {

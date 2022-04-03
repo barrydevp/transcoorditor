@@ -35,12 +35,17 @@ func (ctrl *Controller) SystemRoutes(a *fiber.App) {
 	// create route
 	route := a.Group("/api/sys")
 
+	// heartbeat
+	route.Get("/ping", ctrl.PingHttp)
+
 	// cluster routes
-	route.Post("/cluster/initiate", ctrl.InitiateClusterHttp)
-	route.Post("/cluster/join", ctrl.JoinClusterHttp)
-	route.Post("/cluster/left", ctrl.LeftClusterHttp)
-	route.Get("/cluster/rsconf", ctrl.GetClusterRsConfHttp)
-	route.Get("/cluster/stats", ctrl.GetClusterStatsHttp)
+	route.Post("/initiate", ctrl.InitiateClusterHttp)
+	route.Post("/join", ctrl.JoinClusterHttp)
+	route.Post("/left", ctrl.LeftClusterHttp)
+	route.Get("/rsconf", ctrl.GetClusterRsConfHttp)
+	route.Get("/stats", ctrl.GetClusterStatsHttp)
+	route.Get("/leader", ctrl.GetClusterLeaderHttp)
+	route.Get("/nconf", ctrl.GetClusterCurrentHttp)
 }
 
 func (ctrl *Controller) PublicRoutes(a *fiber.App) {
