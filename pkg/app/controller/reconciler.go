@@ -52,7 +52,7 @@ func (ctrl *Controller) HandleTimeoutSessionRecl(entries []reconciler.ScheduleEn
 					})
 
 				} else if shouldRetryAfter2Mins(session, err) {
-					logger.Info("terminate failed, retry after 2 mins")
+					logger.Debug("terminate failed, retry after 2 mins")
 					// retry after 2 mins
 
 					newEntries = append(newEntries, &TimeoutSessionEntry{
@@ -66,7 +66,7 @@ func (ctrl *Controller) HandleTimeoutSessionRecl(entries []reconciler.ScheduleEn
 		}
 	}
 
-	logger.Info("handleTimeoutSession done!")
+	logger.Debug("handleTimeoutSession done!")
 
 	return newEntries
 }

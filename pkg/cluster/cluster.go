@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"errors"
+	"net"
 	"time"
 
 	"github.com/barrydevp/transcoorditor/pkg/common"
@@ -26,12 +27,13 @@ type Cluster struct {
 }
 
 type Node struct {
-	Endpoint string
-	Host     string
+	ID   string
+	Host string
+	Addr string
 }
 
 func (n *Node) id() raft.ServerID {
-	return raft.ServerID(n.Endpoint)
+	return raft.ServerID(n.ID)
 }
 
 func (n *Node) addr() raft.ServerAddress {
@@ -51,11 +53,12 @@ func New() *Cluster {
 
 func (c *Cluster) Run(applier Applier) (err error) {
 	rcfg := &RaftConfig{
-		Ap:      applier,
-		Addr:    viper.GetString("NODE_ADDR"),
-		SID:     viper.GetString("NODE_ID"),
-		DBFile:  viper.GetString("RAFT_DB"),
-		BaseDir: viper.GetString("CLUSTER_BASE_DIR"),
+		Ap:       applier,
+		Addr:     viper.GetString("NODE_ADDR"),
+		SID:      viper.GetString("NODE_ID"),
+		DBFile:   viper.GetString("RAFT_DB"),
+		BaseDir:  viper.GetString("CLUSTER_BASE_DIR"),
+		LogLevel: viper.GetString("LOG_LEVEL"),
 	}
 
 	if c.Ra, err = NewRaft(rcfg); err != nil {
@@ -177,18 +180,26 @@ func (c *Cluster) GetConf() (*ClusterRsConf, error) {
 	}
 
 	rsconf := &ClusterRsConf{}
-	leaderAddr := c.Ra.Leader()
+	leaderAddr := string(c.Ra.Leader())
 	for _, server := range raftConf.Servers {
 		n := &Node{
-			Endpoint: string(server.ID),
-			Host:     string(server.Address),
+			ID:   string(server.ID),
+			Host: string(server.Address),
 		}
 		rsconf.Nodes = append(rsconf.Nodes, n)
-		if server.Address == leaderAddr {
-			rsconf.Leader = n
-		}
+
 		if server.Address == raft.ServerAddress(c.Ra.Cfg.Addr) {
 			rsconf.Current = n
+		}
+
+		addr, err := net.ResolveTCPAddr("tcp", string(server.Address))
+		if err != nil {
+			continue
+		}
+		n.Addr = addr.String()
+
+		if n.Addr == leaderAddr {
+			rsconf.Leader = n
 		}
 	}
 

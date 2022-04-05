@@ -143,7 +143,7 @@ func (f *fsm) Apply(log *raft.Log) interface{} {
 	if err := json.Unmarshal(log.Data, &cmd); err != nil {
 		panic(fmt.Errorf("malformed OpLog: %w", err))
 	}
-	logger.Info(" + [fsm] Apply Log: ", cmd.Op, cmd.Ns, string(cmd.K))
+	logger.Debug(" + [fsm] Apply Log: ", cmd.Op, cmd.Ns, string(cmd.K))
 
 	var response *ApplyResponse
 	if f.ap == nil {

@@ -6,6 +6,9 @@ import (
 )
 
 func loadDefaults() {
+	// logger
+	viper.SetDefault("LOG_LEVEL", "info")
+
 	// for API Server
 	viper.SetDefault("PORT", "8000")
 	viper.SetDefault("SERVER_READ_TIMEOUT", "300")

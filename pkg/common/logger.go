@@ -8,12 +8,10 @@ import (
 	"github.com/spf13/viper"
 )
 
-const DEBUG_LEVEL_KEY = "DEBUG_LEVEL"
-
 var logger = logrus.New()
 
 func Logger() *logrus.Logger {
-    return logger
+	return logger
 }
 
 func getDebugLevel(level string) logrus.Level {
@@ -46,5 +44,5 @@ func InitLogger() {
 	logger.SetOutput(os.Stdout)
 
 	// Debug level
-	logger.SetLevel(getDebugLevel(viper.GetString(DEBUG_LEVEL_KEY)))
+	logger.SetLevel(getDebugLevel(viper.GetString("LOG_LEVEL")))
 }

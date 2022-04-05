@@ -23,6 +23,7 @@ var (
 	ErrRpcUnsupported       = errors.New("this rpc method does not supported")
 	ErrNamespaceUnsupported = errors.New("this rpc namespace does not supported")
 	ErrCmdUnsupported       = errors.New("this cmd does not supported")
+	ErrStaleCmd             = errors.New("stale command")
 )
 
 type replsetBackend struct {
@@ -91,8 +92,8 @@ func (rs *replsetBackend) Apply(c *cluster.Command, log *raft.Log) *cluster.Appl
 	if rs.replaying && rs.lastLog != nil {
 		// @TODO: verify log.Term to determine this replset node is in in-consistent state
 		if log.Index <= rs.lastLog.Index {
-			logger.Info("Skip old cmd, comming index: ", log.Index, " last persisted index: ", rs.lastLog.Index)
-			return nil
+			logger.Debug("Skip old cmd, comming index: ", log.Index, " last persisted index: ", rs.lastLog.Index)
+			return NewApplyErr(ErrStaleCmd)
 		} else {
 			// disable replaying mode
 			rs.replaying = false
