@@ -212,6 +212,7 @@ var (
 	Commit    EndSessionAct = "commit"
 	Abort     EndSessionAct = "abort"
 	Terminate EndSessionAct = "terminate"
+	Forget    EndSessionAct = "forget"
 	Noop      EndSessionAct = "noop"
 )
 
@@ -219,7 +220,11 @@ func (srv *Service) endSession(session *schema.Session, act EndSessionAct) (*sch
 	var err error = nil
 	update := &schema.SessionUpdate{}
 
-	if !session.IsMaximumRetry() {
+	if act == Forget {
+		session.State = schema.SessionTerminated
+		session.TerminateReason = "forget session"
+		update.TerminateReason = &session.TerminateReason
+	} else if !session.IsMaximumRetry() {
 		startState := schema.SessionTerminating
 		endOKState := schema.SessionTerminated
 		endERRState := schema.SessionTerminateFailed
@@ -275,6 +280,8 @@ func (srv *Service) endSession(session *schema.Session, act EndSessionAct) (*sch
 	update.State = &session.State
 	update.Retries = &session.Retries
 	update.Errors = &session.Errors
+	now := time.Now()
+	update.EndAt = &now
 
 	// complete end session, do state transition, save result
 	if _, err := srv.s.Session().UpdateById(session.Id, update); err != nil {
@@ -299,7 +306,6 @@ func (srv *Service) CommitSession(id string) (*schema.Session, error) {
 		return nil, exception.AppPreconditionFailed(err)
 	}
 
-	// return srv.commitSession(session)
 	return srv.endSession(session, Commit)
 }
 
@@ -317,8 +323,24 @@ func (srv *Service) AbortSession(id string) (*schema.Session, error) {
 		return nil, exception.AppPreconditionFailed(err)
 	}
 
-	// return srv.abortSession(session)
 	return srv.endSession(session, Abort)
+}
+
+func (srv *Service) ForgetSession(id string) (*schema.Session, error) {
+	session, err := srv.GetSessionById(id, true)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := session.CheckInProcessing(); err != nil {
+		return nil, exception.AppUnprocessableEntity(err)
+	}
+
+	if err := session.CheckSessionFinished(); err != nil {
+		return nil, exception.AppUnprocessableEntity(err)
+	}
+
+	return srv.endSession(session, Forget)
 }
 
 func (srv *Service) TerminateSession(id string) (*schema.Session, error) {

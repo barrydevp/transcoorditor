@@ -49,6 +49,7 @@ type Session struct {
 
 	State           SessionState `json:"state" bson:"state"`
 	Timeout         int          `json:"timeout" bson:"timeout"`
+	EndAt           *time.Time   `json:"endAt,omitempty" bson:"endAt,omitempty"`
 	UpdatedAt       *time.Time   `json:"updatedAt,omitempty" bson:"updatedAt,omitempty"`
 	StartedAt       *time.Time   `json:"startedAt,omitempty" bson:"startedAt,omitempty"`
 	CreatedAt       *time.Time   `json:"createdAt,omitempty" bson:"createdAt,omitempty"`
@@ -64,6 +65,7 @@ type SessionUpdate struct {
 	State           *SessionState
 	Errors          *[]string
 	Timeout         *int `json:"timeout"`
+	EndAt           *time.Time
 	UpdatedAt       *time.Time
 	StartedAt       *time.Time
 	Retries         *int

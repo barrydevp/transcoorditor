@@ -56,12 +56,15 @@ func (ctrl *Controller) PublicRoutes(a *fiber.App) {
 	route.Get("/sessions", ctrl.ListSessionHttp)
 	route.Get("/sessions/:sessionId", ctrl.GetSessionByIdHttp)
 	route.Put("/sessions/:sessionId", ctrl.PutSessionByIdHttp)
-	route.Delete("/sessions/:sessionId", ctrl.DeleteSessionByIdHttp)
 	route.Post("/sessions", ctrl.StartSessionHttp)
 	route.Post("/sessions/:sessionId/join", ctrl.JoinSessionHttp)
 	route.Post("/sessions/:sessionId/partial-commit", ctrl.PartialCommitHttp)
 	route.Post("/sessions/:sessionId/commit", ctrl.CommitSessionHttp)
 	route.Post("/sessions/:sessionId/abort", ctrl.AbortSessionHttp)
+	route.Post("/sessions/:sessionId/forget", ctrl.ForgetSessionHttp)
+
+    // internal testing
+	route.Delete("/sessions/:sessionId", ctrl.DeleteSessionByIdHttp)
 
 }
 

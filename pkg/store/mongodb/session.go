@@ -53,6 +53,10 @@ func (s *sessionRepo) PutById(id string, schemaUpdate *schema.Session) (*schema.
 		update = append(update, bson.E{"errors", &schemaUpdate.Errors})
 	}
 
+	if schemaUpdate.EndAt != nil {
+		update = append(update, bson.E{"endAt", schemaUpdate.EndAt})
+	}
+
 	if schemaUpdate.UpdatedAt != nil {
 		update = append(update, bson.E{"updatedAt", schemaUpdate.UpdatedAt})
 	}
@@ -199,6 +203,10 @@ func (s *sessionRepo) UpdateById(id string, schemaUpdate *schema.SessionUpdate) 
 
 	if schemaUpdate.Errors != nil {
 		update = append(update, bson.E{"errors", &schemaUpdate.Errors})
+	}
+
+	if schemaUpdate.EndAt != nil {
+		update = append(update, bson.E{"endAt", schemaUpdate.EndAt})
 	}
 
 	if schemaUpdate.UpdatedAt != nil {

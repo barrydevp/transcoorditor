@@ -142,3 +142,14 @@ func (ctrl *Controller) AbortSessionHttp(c *fiber.Ctx) error {
 
 	return util.SendOK(c, session)
 }
+
+func (ctrl *Controller) ForgetSessionHttp(c *fiber.Ctx) error {
+	sessionId := c.Params("sessionId")
+
+	session, err := ctrl.srv.ForgetSession(sessionId)
+	if err != nil {
+		return util.SendError(c, "unable to forget session", err)
+	}
+
+	return util.SendOK(c, session)
+}
