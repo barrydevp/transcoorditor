@@ -60,7 +60,8 @@ func (ctrl *Controller) DeleteSessionByIdHttp(c *fiber.Ctx) error {
 
 func (ctrl *Controller) StartSessionHttp(c *fiber.Ctx) error {
 	sessionOpts := schema.NewSessionOption()
-	if err := c.BodyParser(sessionOpts); err != nil {
+	var err error
+	if err = c.BodyParser(sessionOpts); err != nil {
 		return util.SendError(c, "unable to parse start session request payload", err)
 	}
 

@@ -1,6 +1,8 @@
 package store
 
 import (
+	"errors"
+
 	"github.com/barrydevp/transcoorditor/pkg/cluster"
 	"github.com/barrydevp/transcoorditor/pkg/exception"
 	"github.com/barrydevp/transcoorditor/pkg/schema"
@@ -9,6 +11,10 @@ import (
 
 var (
 	ErrSessionNotFound = exception.AppNotFoundf("session not found")
+	ErrLockNotFound    = errors.New("lock not found")
+	ErrLockNotOwner    = errors.New("lock was belong to another onwer")
+	ErrLockExpired     = errors.New("lock has been expired")
+	ErrLockExists      = errors.New("lock has been exist and not expired yet")
 )
 
 type (
@@ -16,6 +22,7 @@ type (
 		Session() Session
 		Participant() Participant
 		Replset() Replset
+		LockTable() LockTable
 		GetApplier() cluster.Applier
 		Close()
 	}
@@ -45,12 +52,22 @@ type (
 		CountBySessionId(sessionId string) (int64, error)
 		DeleteBySessionId(sessionId string) (int64, error)
 	}
+
+	LockTable interface {
+		Save(l *schema.LockEntry) error
+		Update(l *schema.LockEntry) error
+		Find(key string) (*schema.LockEntry, error)
+		FindWithOwner(key string, owner string) (*schema.LockEntry, error)
+		Delete(l *schema.LockEntry) error
+		DeleteByOwner(owner string) (int64, error)
+	}
 )
 
 type Backend struct {
 	SessionImpl     Session
 	ParticipantImpl Participant
 	ReplsetImpl     Replset
+	LockTableImpl   LockTable
 }
 
 func (b *Backend) Session() Session {
@@ -63,6 +80,10 @@ func (b *Backend) Participant() Participant {
 
 func (b *Backend) Replset() Replset {
 	return b.ReplsetImpl
+}
+
+func (b *Backend) LockTable() LockTable {
+	return b.LockTableImpl
 }
 
 func (b *Backend) GetApplier() cluster.Applier {

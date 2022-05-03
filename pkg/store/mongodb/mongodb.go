@@ -75,6 +75,7 @@ func NewStore() (store.Interface, error) {
 		SessionImpl:     NewSession(baseRepo),
 		ParticipantImpl: NewParticipant(baseRepo),
 		ReplsetImpl:     NewReplset(baseRepo),
+		LockTableImpl:   NewLockTable(baseRepo),
 	}
 
 	return &mongodbBackend{

@@ -12,6 +12,7 @@ func NewStore() (store.Interface, error) {
 	backend := &store.Backend{
 		SessionImpl:     NewSession(),
 		ParticipantImpl: NewParticipant(),
+		LockTableImpl: NewLockTable(),
 	}
 
 	return &memoryBackend{

@@ -2,10 +2,7 @@
 version: "3.9"
 
 x-baseservice: &baseservice
-  build:
-    context: ./
-    dockerfile: Dockerfile
-  image: transcoorditor:latest
+  image: transcoorditor
   networks:
     - default
     - transcoorditor
@@ -35,6 +32,15 @@ services:
     #   - mongo1
     #   - mongo2
     # entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0" ]
+    healthcheck:
+      test:
+        - CMD
+        - mongo
+        - --eval
+        - "db.adminCommand('ping')"
+      interval: 30s
+      timeout: 10s
+      retries: 5
     volumes:
       - ./.local/mongodb/data:/data/db
 
@@ -58,17 +64,20 @@ services:
 
   transcoorditor1:
     <<: *baseservice
+    build:
+      context: ./
+      dockerfile: Dockerfile
     container_name: transcoorditor1
     environment:
       - LOG_LEVEL=warn
       - NODE_ADDR=transcoorditor1:7000
       - NODE_ID=transcoorditor1
       - BACKEND_STORE=boltdb
-      - MONGODB_URI=mongodb://mongodb:27017
+      # - MONGODB_URI=mongodb://mongodb:27017
       - BOLTDB_PATH=/cluster/bolt.db
       - CLUSTER_BASE_DIR=/cluster
-    depends_on:
-      - mongodb
+    # depends_on:
+    #   - mongodb
     ports:
       - "8001:8000"
       - "7001:7000"
@@ -91,7 +100,8 @@ services:
       - MONGODB_DB=transcoorditor2
       - CLUSTER_BASE_DIR=/cluster
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     ports:
       - "8002:8000"
       - "7002:7000"
@@ -109,11 +119,11 @@ services:
       - NODE_ADDR=transcoorditor3:7000
       - NODE_ID=transcoorditor3
       - BACKEND_STORE=boltdb
-      - MONGODB_URI=mongodb://mongodb:27017
+      # - MONGODB_URI=mongodb://mongodb:27017
       - BOLTDB_PATH=/cluster/bolt.db
       - CLUSTER_BASE_DIR=/cluster
-    depends_on:
-      - mongodb
+    # depends_on:
+    #   - mongodb
     ports:
       - "8003:8000"
       - "7003:7000"

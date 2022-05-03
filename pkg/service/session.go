@@ -92,10 +92,18 @@ func (srv *Service) PutSessionById(s *schema.Session) (*schema.Session, error) {
 	return session, nil
 }
 
-func (srv *Service) StartSession(s *schema.Session) (*schema.Session, error) {
+func (srv *Service) StartSession(s *schema.Session) (ss *schema.Session, err error) {
 	// if s.State != schema.SessionNew {
 	// 	return util.NewError("session has already started, state: %v", s.State)
 	// }
+
+	var lockEnt *schema.LockEntry
+	if s.LockKey != nil {
+		lockEnt, err = srv.AcquireLock(*s.LockKey, s.Id, time.Minute*30)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	now := time.Now()
 
@@ -104,6 +112,11 @@ func (srv *Service) StartSession(s *schema.Session) (*schema.Session, error) {
 	s.UpdatedAt = &now
 
 	if err := srv.s.Session().Save(s); err != nil {
+		if lockEnt != nil {
+			if err1 := srv.ReleaseLock0(lockEnt); err1 != nil {
+				srv.l.Error("release lock when start session failed", err1)
+			}
+		}
 		return nil, exception.Errorf("failed to save session: %w", err)
 	}
 
@@ -286,6 +299,13 @@ func (srv *Service) endSession(session *schema.Session, act EndSessionAct) (*sch
 	// complete end session, do state transition, save result
 	if _, err := srv.s.Session().UpdateById(session.Id, update); err != nil {
 		return nil, err
+	}
+
+	// release lock if has
+	if session.LockKey != nil {
+		if err1 := srv.ReleaseLock(*session.LockKey, session.Id); err1 != nil {
+			srv.l.Error("release lock when end session failed", err1)
+		}
 	}
 
 	return session, err

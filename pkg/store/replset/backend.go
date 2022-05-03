@@ -33,6 +33,7 @@ type replsetBackend struct {
 
 	internalSession     *sessionRepo
 	internalParticipant *participantRepo
+	internalLockTable   *lockTableRepo
 	// indicate that the store is in replaying cmd state which is happend when starting replset server (early period after you run server in replset mode)
 	replaying bool
 	lastLog   *raft.Log
@@ -46,9 +47,11 @@ func NewReplStore(s store.Interface, c *cluster.Cluster) (*replsetBackend, error
 
 	rs.internalSession = NewSession(rs)
 	rs.internalParticipant = NewParticipant(rs)
+	rs.internalLockTable = NewLockTable(rs)
 	rs.Backend = &store.Backend{
 		SessionImpl:     rs.internalSession,
 		ParticipantImpl: rs.internalParticipant,
+		LockTableImpl:   rs.internalLockTable,
 	}
 	// retrive last log from backend store
 	lastLog, err := s.Replset().GetLastLog()
@@ -81,6 +84,8 @@ func (s *replsetBackend) executeRPC(c *cluster.Command) *cluster.ApplyResponse {
 		return s.internalSession.executeRPC(c)
 	case "Participant":
 		return s.internalParticipant.executeRPC(c)
+	case "LockTable":
+		return s.internalLockTable.executeRPC(c)
 	}
 
 	return NewApplyErr(ErrNamespaceUnsupported)

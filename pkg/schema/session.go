@@ -28,7 +28,8 @@ const (
 )
 
 type SessionOptions struct {
-	Timeout int `json:"timeout"`
+	Timeout int     `json:"timeout"`
+	LockKey *string `json:"lockKey"`
 }
 
 const (
@@ -57,6 +58,8 @@ type Session struct {
 	Retries         int          `json:"retries" bson:"retries"`
 	TerminateReason string       `json:"terminateReason,omitempty" bson:"terminateReason,omitempty"`
 
+	LockKey *string `json:"lockKey,omitempty" bson:"lockKey,omitempty"`
+
 	// for edges field (relations associate field)
 	Participants []*Participant `json:"participants,omitempty" bson:"-"`
 }
@@ -81,6 +84,7 @@ func NewSession(opts *SessionOptions) *Session {
 		Timeout:      opts.Timeout,
 		CreatedAt:    &now,
 		Participants: nil,
+		LockKey:      opts.LockKey,
 	}
 }
 
